@@ -8,85 +8,104 @@
 
 module controller
 (
-	input wire clk,
-	input wire n_rst,
-	input wire en_filter_phase,		// Start the filtering phase.
-	input wire read_done,			// Pixel block read complete.
-	input wire all_read,			// All pixels have been processed, only need to output last pixel.
-	input wire filter_done,			// Filtering operation complete.
-	input wire send_done,			// Transmission of last filtered pixel complete.
-	output reg en_read,				// Start reading the next pixel block.
-	output reg en_filter,			// Start filter for current pixel.
-	output reg en_send,				// Start sending previous filtered pixel.
-	output reg filter_phase_done	// Filter phase completed for all pixels.
+  input wire clk,
+  input wire n_rst,
+  input wire en_filter,             // Start the filtering phase.
+  input wire io_final,              // SRAM I/O complete in next cycle.
+  input wire blur_final,            // Blur complete in next cycle.
+  input wire gradient_final,        // Gradient complete in next cycle.
+  input wire nms_final,             // Non-maximal suppression complete in
+                                    // next cycle.
+  input wire hyst_done,             // Hysterysis complete in next cycle.
+  input wire [31:0] width,          // Width of Image.
+  input wire [31:0] height,         // Height of Image.
+  
+  output wire read_enable,
+  output wire write_enable,
+
+  output wire anchor_moving,
+  output wire [31:0] anchor_x,
+  output wire [31:0] anchor_y,
+  
+  output reg process_done           // Filter phase completed for all pixels.
 );
 
-	typedef enum {IDLE, START_READ, READING, START_FILTER_N_SEND, FILTERING_N_SENDING, DONE} state_type;
-	state_type state, next_state;
-	
-	reg next_en_filter;
-	reg next_en_send;
-	reg next_en_read;
-	reg next_filter_phase_done;
-	
-	// Don't enable filter if all pixels are already processed. Only send previous result.
-	assign next_en_filter = (next_state == START_FILTER_N_SEND) && read_done && ~all_read;
-	
-	assign next_en_read = next_state == START_READ;
-	assign next_en_send = next_state == START_FILTER_N_SEND;
-	assign next_filter_phase_done = next_state == DONE;
-	
-	always @ (posedge clk, negedge n_rst)
-	begin
-		if (n_rst == 1'b0)
-		begin
-			state <= IDLE;
-			en_read <= 1'b0;
-			en_filter <= 1'b0;
-			en_send <= 1'b0;
-			filter_phase_done <= 1'b0;
-		end
-		else 
-		begin
-			state <= next_state;
-			en_read <= next_en_read;
-			en_filter <= next_en_filter;
-			en_send <= next_en_send;
-			filter_phase_done <= next_filter_phase_done;
-		end
-	end
-	
-	always @ (state, en_filter_phase, read_done, all_read, filter_done, send_done)
-	begin
-		next_state = IDLE;
-		case (state)
-			IDLE:
-			begin
-				if (en_filter_phase)
-					next_state = START_READ;
-				else
-					next_state = IDLE;
-			end
-			START_READ:
-				next_state = READING;
-			READING:
-			begin
-				if (read_done || all_read)
-					next_state = START_FILTER_N_SEND;
-				else
-					next_state = READING;
-			end
-			START_FILTER_N_SEND:
-				next_state = FILTERING_N_SENDING;
-			FILTERING_N_SENDING:
-				if (send_done && all_read)
-					next_state = DONE;
-				else if (send_done && (~all_read && filter_done))
-					next_state = START_READ;
-				else
-					next_state = FILTERING_N_SENDING;
-			DONE:
-				next_state = IDLE;
-		endcase
-	end
+  param X_OFFSET = 4;
+  typedef enum {IDLE, PROCESSING, DONE} state_type;
+  state_type state, next_state;
+
+  wire x_end;
+  wire y_end;
+
+  wire clear;
+  wire all_final;
+  wire at_x_end;
+  wire at_y_end;
+  wire on_last_block;
+
+  assign x_end = width + X_OFFSET;
+  assign y_end = height;
+
+  assign clear = state == IDLE;
+  assign all_final = io_final && blur_final && gradient_final && nms_final &&
+      hyst_final;
+  assign on_last_block = at_x_end && at_y_end;
+  assign anchor_moving = all_final && ~on_last_block;
+
+  flex_counter #(32) x_counter(
+      .clk(clk),
+      .n_rst(n_rst),
+      .clear(clear),
+      .count_enable(anchor_moving),
+      .rollover_val(x_end),
+      .count_out(anchor_x),
+      .rollover_flag(at_x_end));
+
+  flex_counter #(32) y_counter(
+      .clk(clk),
+      .n_rst(n_rst),
+      .clear(clear),
+      .count_enable(at_x_end),
+      .rollover_val(y_end),
+      .count_out(anchor_y),
+      .rollover_flag(at_y_end));
+
+  always @ (posedge clk, negedge n_rst)
+  begin
+    if (n_rst == 1'b0)
+    begin
+      state <= IDLE;
+      process_done <= 1'b0;
+    end
+    else 
+    begin
+      state <= next_state;
+      process_done <= next_state == DONE;
+    end
+  end
+
+  always @ (state)
+  begin
+    next_state = IDLE;
+    case (state)
+      IDLE:
+      begin
+        if (en_filter)
+          next_state = PROCESSING;
+        else
+          next_state = IDLE;
+      end
+      PROCESSING:
+      begin
+        if (~anchor_moving)
+          next_state = DONE;
+        else
+          next_state = PROCESSING;
+      end
+      DONE:
+      begin
+        next_state = IDLE;
+      end
+    endcase
+  end
 endmodule
