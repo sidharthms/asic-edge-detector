@@ -20,7 +20,7 @@ module blur_controller
   output reg filter_final            // Filter phase completed for all pixels.
 );
 
-  reg [7:0] blur_data [16][5];
+  reg [7:0][5] blur_data [16];
   reg [7:0] blur_data_new [20];
   reg [3:0] first_column;
 
@@ -32,6 +32,10 @@ module blur_controller
   wire on_last;
   reg stage;
 
+  reg [4:0] in_pixels;
+  wire out_pixel;
+  reg direction;
+
   assign clear = state == IDLE;
 
   flex_counter #(4) index_counter(
@@ -42,6 +46,15 @@ module blur_controller
       .rollover_val(4'd15),
       .count_out(index),
       .rollover_flag(on_last));
+
+  blur_filter filter(
+      .in_pixels(in_pixels),
+      .out_pixel(out_pixel),
+      .direction(direction));
+
+  column_shift #(.BITS(8), WIDTH(5)) data_shift(
+      .columns(blur_data[index]),
+      .shifted_columns(shifted_blur_data));
 
   always @ (posedge clk, negedge n_rst)
   begin
@@ -63,8 +76,8 @@ module blur_controller
     else if (state ~= IDLE)
     begin
       if (stage == 0)
-      begin
-        in_pixel[0] = 
-      end
+        in_pixel = blur_data_new[index +: 5];
+      else
+        in_pixel = shifted_blur_data;
     end
   end
