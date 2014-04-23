@@ -41,7 +41,7 @@ module blur_controller
   assign clear = next_state == IDLE;
   assign unit_en = next_state == PROCESSING;
 
-  flex_counter #(4) index_counter(
+  flex_counter #(.NUM_CNT_BITS(4)) index_counter(
       .clk(clk),
       .n_rst(n_rst),
       .clear(clear),
@@ -65,11 +65,11 @@ module blur_controller
       .shift(first_column),
       .shifted_columns(shifted_blur_data));
 
-  cyclic_add #(
-      .BITS(3))
-    subtract_one(
+  cyclic_adder #(.BITS(3)) subtract_one(
       .left(first_column),
-      .right(-1),
+      .right(1),
+      .subtract(1),
+      .rollover_val(5),
       .result(stale_column));
 
   assign blur_final = stage == 1 && on_last;
@@ -129,3 +129,4 @@ module blur_controller
     else
       in_pixels = shifted_blur_data;
   end
+endmodule
