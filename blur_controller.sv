@@ -19,8 +19,8 @@ module blur_controller
   output wire [7:0] blur_out [16];
   output reg filter_final            // Filter phase completed for all pixels.
 );
-
-  reg [7:0][5] blur_data [16];
+  
+  reg [7:0] blur_data [5][16];
   reg [7:0] blur_data_new [20];
   reg [3:0] first_column;
 
@@ -32,9 +32,9 @@ module blur_controller
   wire on_last;
   reg stage;
 
-  reg [4:0] in_pixels;
-  wire out_pixel;
-  reg direction;
+  wire [7:0] in_pixels [5];
+  wire [7:0] out_pixel;
+  reg  direction;
 
   assign clear = state == IDLE;
 
@@ -56,6 +56,8 @@ module blur_controller
       .columns(blur_data[index]),
       .shifted_columns(shifted_blur_data));
 
+  assign filter_final = stage == 1 && on_last;
+
   always @ (posedge clk, negedge n_rst)
   begin
     if (n_rst == 1'b0)
@@ -66,18 +68,55 @@ module blur_controller
     else
       state <= next_state;
 
-    if (state == IDLE)
+    if (next_state == IDLE)
       stage <= 0;
     else if (on_last)
       stage <= 1;
 
-    if (state == COPY)
+    if (next_state == COPY)
       blur_data_new <= blur_in;
-    else if (state ~= IDLE)
+    
+    if (next_state ~= IDLE)
     begin
       if (stage == 0)
+        
         in_pixel = blur_data_new[index +: 5];
       else
         in_pixel = shifted_blur_data;
     end
+  end
+
+  always @ (state, anchor_moving, filter_final)
+  begin
+    case (state)
+      IDLE:
+      begin
+        if (anchor_moving)
+          next_state = COPY;
+        else
+          next_state = IDLE;
+      end
+      COPY:
+        next_state = PROCESSING;
+      PROCESSING:
+      begin
+        if (filter_final)
+        begin
+          if (anchor_moving)
+            next_state = COPY;
+          else
+            next_state = IDLE;
+        end
+        else
+          next_state = PROCESSING;
+      end
+    end
+  end
+
+  always @ (next_state,
+  begin
+    if (stage == 0)
+      in_pixels = blur_data_new[index +: 5];
+    else
+      in_pixels = shifted_blur_data;
   end

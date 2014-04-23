@@ -84,7 +84,7 @@ module controller
     end
   end
 
-  always @ (state)
+  always @ (state, en_filter, anchor_moving)
   begin
     next_state = IDLE;
     case (state)
