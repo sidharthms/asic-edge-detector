@@ -20,10 +20,13 @@ module blur_controller
   output reg blur_final;             // Filter phase completed for all pixels.
 );
   
+  wire anchor_on_first_row;
+
   reg  [7:0] blur_data [5][16];
   reg  [7:0] blur_data_new [20];
-  reg  [2:0] first_column;
-  wire [2:0] stale_column;
+  wire [2:0] first_row;
+  wire [2:0] stale_row;
+  wire move_first_row;
 
   typedef enum {IDLE, COPY, PROCESS, FINAL} state_type;
   state_type state, next_state;
@@ -38,8 +41,10 @@ module blur_controller
   wire [7:0] out_pixel;
   wire unit_final;
 
+  assign anchor_on_first_row = anchor_y == 0;
   assign clear = next_state == IDLE;
   assign unit_en = next_state == PROCESSING;
+  assign move_first_row = state == PROCESSING && next_state == COPY;
 
   flex_counter #(.NUM_CNT_BITS(4)) index_counter(
       .clk(clk),
@@ -50,30 +55,40 @@ module blur_controller
       .count_out(index),
       .rollover_flag(on_last));
 
-  blur_filter filter(
+  flex_counter #(.NUM_CNT_BITS(3)) first_col_counter(
+      .clk(clk),
+      .n_rst(n_rst),
+      .clear(0),
+      .count_enable(move_first_row),
+      .rollover_val(4),
+      .count_out(first_row),
+      .rollover_flag());
+
+  blur filter(
       .en(unit_en),
       .in_pixels(in_pixels),
       .out_pixel(out_pixel),
       .final(unit_final));
 
-  column_shift #(
+  row_shift #(
       .BITS(8),
       .WIDTH(5),
       .SHIFT_BITS(3))
     data_shift(
-      .columns(blur_data[index]),
-      .shift(first_column),
-      .shifted_columns(shifted_blur_data));
+      .rows(blur_data[index]),
+      .shift(first_row),
+      .shifted_rows(shifted_blur_data));
 
   cyclic_adder #(.BITS(3)) subtract_one(
-      .left(first_column),
+      .left(first_row),
       .right(1),
       .subtract(1),
-      .rollover_val(5),
-      .result(stale_column));
+      .limit(5),
+      .result(stale_row));
 
   assign blur_final = stage == 1 && on_last;
 
+  integer i;
   always @ (posedge clk, negedge n_rst)
   begin
     if (n_rst == 1'b0)
@@ -90,9 +105,15 @@ module blur_controller
       blur_data_new <= blur_in;
 
     if (stage == 0)
-      blur_data[row][stale_column] <= out_pixel;
+      if (anchor_on_first_row)
+      begin
+        for (i = 0; i < 5; ++i)
+          blur_data[index][i] <= out_pixel;
+      end
+      else
+        blur_data[index][stale_row] <= out_pixel;
     else
-      blur_out[row] <= out_pixel;
+      blur_out[index] <= out_pixel;
   end
 
   always @ (state, anchor_moving, blur_final)
