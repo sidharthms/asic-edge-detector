@@ -28,7 +28,7 @@ module tb_ARM
 	//Protection control (out)
 	wire [3:0] AHB_HPROT;
 	//Address bus (out)
-	wire [BUS_WIDTH-1:0] AHB_HADDR;
+	reg [BUS_WIDTH-1:0] AHB_HADDR;
 	//Write data bus (out)
 	wire [BUS_WIDTH-1:0] AHB_HWDATA;
 	//Read data bus (in)
@@ -60,6 +60,7 @@ module tb_ARM
 		//Send stuff to DUT
 		send(DUT_ADDR, BUS_WIDTH);
 		//Wait for DUT's response
+		
 	end
 
 	function void gen_hclock();
@@ -75,6 +76,7 @@ module tb_ARM
 	function void send(integer address, integer data);
 		//Generic Method for sending data
 		$display ("Sending Data...");
+		AHB_HADDR = address;
 	endfunction : send
 
 endmodule
