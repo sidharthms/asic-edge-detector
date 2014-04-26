@@ -10,10 +10,14 @@
 module tb_ARM
 ();
         // Define local parameters used by the test bench
-        localparam BUS_WIDTH = 32;
+  localparam BUS_WIDTH = 32;
 	localparam SRAM_ADDR = 32'b11111001;	
 	localparam DUT_ADDR = 32'b000001111;
-
+	localparam BMP_HEADER_SIZE = 50;
+  localparam W_ADDR_SIZE_BITS = 16;
+  localparam W_DATA_SIZE_WORDS = 1;
+  localparam W_WORD_SIZE_BYTES = 1;	
+	
 	//Bus Signals
 	//Bus Clock
 	wire AHB_HCLK;
@@ -47,21 +51,46 @@ module tb_ARM
 	wire [1:0] AHB_RESP;
 
 	//BMP Structures
-	localparam BMP_HEADER_SIZE = 50;
+
 	integer in_file; //file handle
 	reg [BMP_HEADER_SIZE:0][7:0] bmp_header;
+	
+	//Ports for Off chip SRAM
+	
+	
+	int init_file_number, dump_file_number;
+	reg mem_clr, mem_init, mem_dump, verbose;
+	int start_address, last_address;
+	reg read_enable, write_enable;
+	
+	reg [W_ADDR_SIZE_BITS - 1:0] address;
+	reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] data;
 
-        // DUT port map
-        //Connect to Interface DUT
 
-        // Test bench process
-        initial
-        begin
+	off_chip_sram_wrapper SRAM(.init_file_number(init_file_number), 
+                                    .dump_file_number(dump_file_number), 
+                                    .mem_clr(mem_clr), 
+                                    .mem_init(mem_init),
+                                    .mem_dump(mem_dump), 
+                                    .start_address(start_address), 
+                                    .last_address(last_address), 
+                                    .verbose(verbose), 
+                                    .read_enable(read_enable), 
+                                    .write_enable(write_enable), 
+                                    .address(address), 
+                                    .data(data));
+                                    	                            
+   // Test bench process
+   initial
+    begin
+		
+		//Put things into SRAM
+		
 		//Send stuff to DUT
 		send(DUT_ADDR, BUS_WIDTH);
 		//Wait for DUT's response
-		
-	end
+				
+   end
 
 	function void gen_hclock();
 		//Generate CLOCK here
