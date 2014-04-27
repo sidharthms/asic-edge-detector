@@ -101,10 +101,16 @@ module blur_controller
     else if (on_last)
       stage <= 1;
 
+    // Copy in fresh data at the beginning.
     if (next_state == COPY)
       blur_data_new <= blur_in;
 
+    // Perform X blur along fresh data in stage 0 and Y blur along cached rows
+    // in stage 1.
     if (stage == 0)
+
+      // If on the first row initialize row cache to results of first row to
+      // prevent "glow" around image edge.
       if (anchor_on_first_row)
       begin
         for (i = 0; i < 5; ++i)
@@ -143,7 +149,7 @@ module blur_controller
     end
   end
 
-  always @ (next_state, stage, index)
+  always @ (stage, index)
   begin
     if (stage == 0)
       in_pixels = blur_data_new[index +: 5];

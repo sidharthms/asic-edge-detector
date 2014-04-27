@@ -26,7 +26,7 @@ module cyclic_adder
       sum = left + right
 
       // Check for oveflow.
-      if (sum[BITS] || sum >= rollover_val)
+      if (sum[BITS]) 
         corrected_sum = sum - rollover_val;
       else
         corrected_sum = sum;
