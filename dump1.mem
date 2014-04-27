@@ -1,0 +1,8 @@
+<addr>:<data value in hexidecimal>
+0:AA;
+1:A0;
+4:A1;
+16:02;
+17:2F;
+200:5A;
+1024:00;
