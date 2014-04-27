@@ -87,8 +87,8 @@ architecture wrapper of off_chip_sram_wrapper is
 
 	-- VHDL strings are statically allocated so you need to have all filenames be the same size
 	-- Note: VHDL strings use whole number addressing and thus start off at 1
-	constant MAX_INIT_FILENAME_SIZE	: natural	:= 18;
-	constant MAX_DUMP_FILENAME_SIZE	: natural	:= 18;
+	constant MAX_INIT_FILENAME_SIZE	: natural	:= 9;
+	constant MAX_DUMP_FILENAME_SIZE	: natural	:= 9;
 	
 	
 	-- Declare the filename array type (allow the number of filenames to be determined on usage)
@@ -98,15 +98,15 @@ architecture wrapper of off_chip_sram_wrapper is
 	-- Declare and define filename array constants
 	constant INIT_FILENAMES	: i_filenames	:=
 	(
-		"example_init_1.txt",
-		"example_init_2.txt",
-		"example_init_3.txt"
+		"init1.mem",
+		"init2.mem",
+		"init3.mem"
 	);
 	constant DUMP_FILENAMES	: d_filenames	:=
 	(
-		"example_dump_1.txt",
-		"example_dump_2.txt",
-		"example_dump_3.txt"
+		"dump1.mem",
+		"dump2.mem",
+		"dump3.mem"
 	);
 	
 	-- Declare the signals that will be connected to the actual SRAM module

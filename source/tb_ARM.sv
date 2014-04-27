@@ -10,14 +10,19 @@
 module tb_ARM
 ();
         // Define local parameters used by the test bench
-  localparam BUS_WIDTH = 32;
+	localparam BUS_WIDTH = 32;
 	localparam SRAM_ADDR = 32'b11111001;	
 	localparam DUT_ADDR = 32'b000001111;
 	localparam BMP_HEADER_SIZE = 50;
-  localparam W_ADDR_SIZE_BITS = 16;
-  localparam W_DATA_SIZE_WORDS = 1;
-  localparam W_WORD_SIZE_BYTES = 1;	
+  	localparam W_ADDR_SIZE_BITS = 16;
+  	localparam W_DATA_SIZE_WORDS = 1;
+  	localparam W_WORD_SIZE_BYTES = 1;	
+	//Simulation Timestep
+	localparam TIMESTEP = 5;
+	localparam CLK_T = 12; 
 	
+	reg tb_clk;
+
 	//Bus Signals
 	//Bus Clock
 	wire AHB_HCLK;
@@ -50,22 +55,44 @@ module tb_ARM
 	//Transfer response (in)
 	wire [1:0] AHB_RESP;
 
-	//BMP Structures
+	/*BMP Structures*/
 
 	integer in_file; //file handle
 	reg [BMP_HEADER_SIZE:0][7:0] bmp_header;
 	
-	//Ports for Off chip SRAM
-	
-	
-	int init_file_number, dump_file_number;
-	reg mem_clr, mem_init, mem_dump, verbose;
-	int start_address, last_address;
-	reg read_enable, write_enable;
-	
+	/*SRAM ports*/	
+	localparam DATA_BUS_FLOAT = 16'hz;
+	//The number of the initialization file name to use during the next requested memory init
+	//Only use values from 0 thru (2^31 - 1) 
+	int unsigned init_file_number;
+	//The number of the dump file name to use during the next requested memory dump
+	int unsigned dump_file_number;
+	//Strobe this for at least 1 simulation timestep to zero all memory contents
+	reg mem_clr;
+	//Strobe this for at least 1 simulation timestep to set the values for addresses
+	//currently selected init file to their corresponding values precribed in the file
+	reg mem_init;
+	//Strobe this for at least 1 simulation timestep to dump all values modified since
+	//the most recent mem_clr activation
+	//Only the locations between the "start_address" and "last_address" (inclusive) will be printed
+	reg mem_dump;
+	//Active high enable for more verbose debugging information
+	reg verbose;
+	//The first address to start dumping memory contents from
+	int unsigned start_address;
+	//The last address to dump memory contents from
+	int unsigned last_address;
+	//Memory interface signals
+	reg read_enable;
+	reg write_enable;
 	reg [W_ADDR_SIZE_BITS - 1:0] address;
-	reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] data;
+	reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] w_data;
+	wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] r_data;
+	wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] bidata;
 
+	//Bidirectional Switch
+	assign r_data = (read_enable == 1) ? bidata : DATA_BUS_FLOAT;
+        assign bidata = (write_enable == 1) ? w_data : DATA_BUS_FLOAT;
 
 	off_chip_sram_wrapper SRAM(.init_file_number(init_file_number), 
                                     .dump_file_number(dump_file_number), 
@@ -74,37 +101,81 @@ module tb_ARM
                                     .mem_dump(mem_dump), 
                                     .start_address(start_address), 
                                     .last_address(last_address), 
-                                    .verbose(verbose), 
+                                    .verbose(verbose),
                                     .read_enable(read_enable), 
                                     .write_enable(write_enable), 
                                     .address(address), 
-                                    .data(data));
-                                    	                            
-   // Test bench process
+                                    .data(bidata));
+ 	
+   //Test bench process
    initial
     begin
+		//rest
+		mem_clr = 1'b0;
+		write_enable = 1'b0;
+		read_enable = 1'b0;
+		mem_init = 1'b0;
+		mem_dump = 1'b0;
 		
-		//Put things into SRAM
+		#(TIMESTEP*5);	
+		//Initialzie SRAM
+		mem_clr = 1'b1;
+		#(TIMESTEP);
+		mem_clr = 1'b0;
+
+		init_file_number = 0;
+		dump_file_number = 0;
+		start_address = 0;
+		last_address = 65535;
 		
-		//Send stuff to DUT
-		send(DUT_ADDR, BUS_WIDTH);
-		//Wait for DUT's response
-				
+		address <= 0;
+		read_enable <= 0;
+
+		//Load Init File into Memory		
+		mem_init = 1'b1;
+		#(TIMESTEP);
+		mem_init = 1'b0;
+		
+		#(CLK_T*10);
+
+		//Modify some memory
+		address <= 1'b1;
+		write_enable <= 1;
+		w_data <= 16'hAA;
+		#(CLK_T);
+		write_enable <= 1'b0;
+
+		#(TIMESTEP);
+
+		write_enable <= 0;		
+
+		#(CLK_T);
+	
+                mem_dump = 1'b1;
+                #(TIMESTEP);
+         	mem_dump = 1'b0;
+	
+		
    end
+	
+	/*always
+	begin : CLK_GEN
+		tb_clk = 1'b0;
+		#(CLK_T / 2);
+		tb_clk = 1'b1;
+		#(CLK_T / 2);
+	end*/
 
-	function void gen_hclock();
-		//Generate CLOCK here
-	endfunction : gen_hclock
-
-	function void getImageFile();
-		//Generic Method for reading file (ex. image file unpacked by python)
+	function void putImageInSRAM();
+		//read image file unpacked by python
+		//and dump to SRAM
 		in_file = $fopen("image.bmp", "rb");
 		$fscanf(in_file,"%c" , bmp_header[0]);
-	endfunction : getImageFile
+	endfunction : putImageInSRAM
 
 	function void send(integer address, integer data);
 		//Generic Method for sending data
-		$display ("Sending Data...");
+		$display ("Sending Data over AHB...");
 		AHB_HADDR = address;
 	endfunction : send
 
