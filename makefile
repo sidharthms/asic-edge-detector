@@ -5,7 +5,6 @@
 ##############################################################################
 
 # Include the common/shared variables for the course to minimize potentially stale values
-# Note: the release_make_vars already includes the common/public ones
 include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 
 ##############################################################################
@@ -29,7 +28,9 @@ TEST_BENCH	:= tb_$(TOP_LEVEL_FILE)
 
 # Fill in the names of any test bench helper code files (code files referenced by your testbenches
 # other than the actual design files)( do not include the 'source/')
-TB_HELPER_FILES	:= 
+# If you are not using one of the sram models simply remove the correspoinding
+# filename from this variable
+TB_HELPER_FILES	:= off_chip_sram_wrapper.vhd on_chip_sram_wrapper.vhd
 
 # Get the top level design and test_bench module names
 TB_MODULE		:= $(notdir $(basename $(TEST_BENCH)))
@@ -42,10 +43,11 @@ S_WORK_LIB := source_work
 M_WORK_LIB := mapped_work
 
 # Automatically handle whether to running on the grid or not
-LIB_CREATE	:= vlib
-COMPILE 		:= vlog -sv
-SIMULATE		:= vsim -Lf $(LABS_IP_LIB) -L $(GATE_LIB) -L $(GOLD_LIB) +no_glitch_msg -coverage
-DC_SHELL		:= dc_shell-t
+LIB_CREATE		:= vlib
+VLOG_COMPILE 	:= vlog -sv
+VHDL_COMPILE 	:= vcom
+SIMULATE			:= vsim -Lf $(LABS_IP_LIB) -L $(GATE_LIB) -L $(GOLD_LIB) +no_glitch_msg -coverage
+DC_SHELL			:= dc_shell-t
 
 ##############################################################################
 # Designate that all "intermediate" files created during chaing make rules
@@ -148,7 +150,7 @@ print_vars:
 	@echo -e "Course Library: '$(LABS_IP_LIB)'"
 	@echo -e "Source work library: '$(S_WORK_LIB)'"
 	@echo -e "Mapped work library: '$(M_WORK_LIB)'"
-	
+
 ##############################################################################
 # Compilation Targets
 ##############################################################################
@@ -163,15 +165,28 @@ $(S_WORK_LIB):
 $(S_WORK_LIB)/%: source/%.sv $(S_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $@
-	@$(COMPILE) -work $(word 2, $^) $< > $*.scomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > $*.scomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
+$(S_WORK_LIB)/%: source/%.vhd $(S_WORK_LIB)
+	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
+	@rm -rf $@
+	@$(VHDL_COMPILE) -work $(word 2, $^) $< > $*.scomp
+	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
+	
 # Define a pattern rule to for use at commandline to compile source versions and
 # send feedback to terminal instead of log file
 source_%: source/%.sv $(S_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $(word 2, $^)/$*
-	@$(COMPILE) -work $(word 2, $^) $< > $*.scomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > $*.scomp
+	@cat $*.scomp
+	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
+
+source_%: source/%.vhd $(S_WORK_LIB)
+	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
+	@rm -rf $(word 2, $^)/$*
+	@$(VHDL_COMPILE) -work $(word 2, $^) $< > $*.scomp
 	@cat $*.scomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
@@ -185,14 +200,20 @@ $(M_WORK_LIB):
 $(M_WORK_LIB)/%: mapped/%.v $(M_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $@
-	@$(COMPILE) -work $(word 2, $^) $< > $*.mcomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > $*.mcomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
 # Define a pattern rule to automatically compile updated test bench files for a full mapped design
 $(M_WORK_LIB)/tb_%: source/tb_%.sv $(M_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $@
-	@$(COMPILE) -work $(word 2, $^) $< > $*.mcomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > $*.mcomp
+	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
+
+$(M_WORK_LIB)/%: source/%.vhd $(M_WORK_LIB)
+	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
+	@rm -rf $@
+	@$(VHDL_COMPILE) -work $(word 2, $^) $< > $*.mcomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
 # Define a pattern rule to for use at commandline to compile mapped versions and
@@ -200,7 +221,7 @@ $(M_WORK_LIB)/tb_%: source/tb_%.sv $(M_WORK_LIB)
 mapped_%: mapped/%.v $(M_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $(word 2, $^)/$*
-	@$(COMPILE) -work $(word 2, $^) $< > $*.mcomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > $*.mcomp
 	@cat $*.mcomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
@@ -209,7 +230,7 @@ mapped_%: mapped/%.v $(M_WORK_LIB)
 mapped_tb_%.sv: source/tb_%.sv $(M_WORK_LIB)
 	@echo -e "Compiling '$<' into work library '$(word 2, $^)'"
 	@rm -rf $(word 2, $^)/tb_$*
-	@$(COMPILE) -work $(word 2, $^) $< > tb_$*.mcomp
+	@$(VLOG_COMPILE) -work $(word 2, $^) $< > tb_$*.mcomp
 	@cat $*.mcomp
 	@echo -e "Done compiling '$<' into work library '$(word 2, $^)'"
 
