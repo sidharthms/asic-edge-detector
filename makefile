@@ -15,16 +15,16 @@ include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 # (do not include the source folder in the name)
 # NOTE: YOU WILL NEED TO SET THIS VARIABLE'S VALUE WHEN WORKING WITH HEIRARCHICAL DESIGNS
 # AND THE AUTOMATED GRADING SYSTEM
-COMPONENT_FILES	:= 
+# COMPONENT_FILES	:= 
 
 # Specify the name of the top level file (do not include the source folder in the name)
 # NOTE: YOU WILL NEED TO SET THIS VARIABLE'S VALUE WHEN WORKING WITH HEIRARCHICAL DESIGNS
 # AND THE AUTOMATED GRADING SYSTEM
-TOP_LEVEL_FILE	:= 
+# TOP_LEVEL_FILE	:= 
 
 # Specify the filepath of the test bench you want to use (ie. tb_top_level.sv)
 # (do not include the source folder in the name)
-TEST_BENCH	:= tb_$(TOP_LEVEL_FILE)
+TEST_BENCH	= tb_$(TOP_LEVEL_FILE)
 
 # Fill in the names of any test bench helper code files (code files referenced by your testbenches
 # other than the actual design files)( do not include the 'source/')
@@ -33,8 +33,8 @@ TEST_BENCH	:= tb_$(TOP_LEVEL_FILE)
 TB_HELPER_FILES	:= off_chip_sram_wrapper.vhd on_chip_sram_wrapper.vhd
 
 # Get the top level design and test_bench module names
-TB_MODULE		:= $(notdir $(basename $(TEST_BENCH)))
-TOP_MODULE	:= $(notdir $(basename $(TOP_LEVEL_FILE)))
+TB_MODULE		= $(notdir $(basename $(TEST_BENCH)))
+TOP_MODULE	= $(notdir $(basename $(TOP_LEVEL_FILE)))
 
 # Select the Cell Library to use with simulations
 GATE_LIB		:= $(AMI_05_LIB)
@@ -277,6 +277,18 @@ sim_full_mapped: $(addprefix $(M_WORK_LIB)/, $(basename $(TOP_LEVEL_FILE) $(TEST
 	@$(SIMULATE) -i -t ps $(M_WORK_LIB).$(TB_MODULE)
 	@cp -f transcript $(basename $(TOP_LEVEL_FILE)).mtran
 	@echo -e "Done simulating the mapped design\n\n"
+
+# Rule for blur module
+sim_tblur_source: 
+	@(eval TOP_LEVEL_FILE = blur_controller.sv)
+	@(eval COMPONENT_FILES = flex_counter.sv blur.sv)
+	@$(MAKE) sim_full_source
+
+# Rule for blur module
+sim_tblur_mapped: 
+	@(eval TOP_LEVEL_FILE = blur_controller.sv)
+	@(eval COMPONENT_FILES = flex_counter.sv blur.sv)
+	@$(MAKE) sim_full_mapped
 
 # Define a pattern rule for simulating the source version of individual files	without a testbench
 sim_%_source: $(S_WORK_LIB)/%
