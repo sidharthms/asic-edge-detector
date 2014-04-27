@@ -4,6 +4,12 @@
 // Author:      Suppatach Sabpisal
 // Lab Section: 337-03
 // Version:     1.0  Initial Design Entry
+// $Id: $
+// File name:   bus_iface
+// Created:     4/23/2014
+// Author:      Suppatach Sabpisal
+// Lab Section: 337-03
+// Version:     1.0  Initial Design Entry
 // Description: Bus Interface - read data from AHB BUS
 
 parameter BUSWIDTH = 32;
@@ -25,4 +31,24 @@ module initializer
 	output wire ahb_hresp //transfer response
 );
 
+   typedef enum     {IDLE, READ_DIM, READ_ADDR1, READ_ADD2, READ_FILTER, KICKSTART} state_type;
+   state_type state, next_state;
+   
+   reg width;
+   reg height;
+   reg readStartAddress;
+   reg writeStartAddress;
+   reg filterType;
+   
+    /*flex_counter #(.NUM_CNT_BITS(4)) index_counter(
+      .clk(clk),
+      .n_rst(n_rst),
+      .clear(clear),
+      .count_enable(unit_final),
+      .rollover_val(15),
+      .count_out(index),
+      .rollover_flag(on_last));*/
+   always @
+ 
+   end 
 endmodule
