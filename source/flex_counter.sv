@@ -17,10 +17,13 @@ module flex_counter
 	input wire count_enable,
 	input wire [NUM_CNT_BITS-1:0] rollover_val,
 	output reg [NUM_CNT_BITS-1:0] count_out,
-	output wire rollover_flag
+	output wire rollover_flag,
+  input wire back_to_zero
 );
 	reg [NUM_CNT_BITS-1:0] data;
+  reg [NUM_CNT_BITS-1:0] next_data;
 	reg flag;
+	reg next_flag;
 	
 	always @ (posedge clk, negedge n_rst)
 	begin
@@ -29,26 +32,39 @@ module flex_counter
 			data <= '0;
 			flag <= 1'b0;
 		end
-		else if (clear == 1'b1)
+    else
+    begin
+      data <= next_data;
+      flag <= next_flag;
+    end
+	end
+
+  always @ (*)
+  begin
+		if (clear == 1'b1)
 		begin
-			data <= '0;
-			flag <= 1'b0;
+			next_data = '0;
+			next_flag = 1'b0;
 		end
-		else begin
+		else 
+    begin
 			if (count_enable)
 				if (rollover_val == data)
-					data <= 1;
+          if (back_to_zero)
+            next_data = 0;
+          else
+            next_data = 1;
 				else
-					data <= data + 1;
+					next_data = data + 1;
 			else
-				data <= data;
+				next_data = data;
 				
-			if ((data == rollover_val - 1) && count_enable)
-				flag <= 1'b1;
+			if (next_data == rollover_val)
+				next_flag = 1'b1;
 			else
-				flag <= 1'b0;
+				next_flag = 1'b0;
 		end
-	end
+  end
 	
 	assign count_out = data;
 	assign rollover_flag = flag;

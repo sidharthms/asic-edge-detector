@@ -5,10 +5,12 @@
 
 module blur
 (
+  input wire clk,
+  input wire n_rst,
 	input wire en,
-	input wire [7:0] in_pixels [5],
-	input wire [7:0] out_pixel,
-	output wire final,
+	input wire [4:0][7:0] in_pixels,
+	output reg [7:0] out_pixel,
+	output wire final_stage
 );
   typedef enum {PHASE1, PHASE2, PHASE3} state_type;
   state_type state, next_state;
@@ -21,6 +23,9 @@ module blur
   reg [12:0] temp1;
   reg [12:0] temp2;
 
+  assign final_stage = state == PHASE3;
+  assign out_pixel = sum[7:0];
+
   adder_3 #(.BITS(13)) adder(
     .addend1(addend1),
     .addend2(addend2),
@@ -30,12 +35,19 @@ module blur
   always @ (posedge clk, negedge n_rst)
   begin
     if (n_rst == 1'b0)
-      state <= IDLE;
+      state <= PHASE1;
     else
+    begin
       state <= next_state;
+
+      if (state == PHASE1)
+        temp1 <= sum;
+      if (state == PHASE2)
+        temp2 <= sum;
+    end
   end
 
-  always @ (state, en)
+  always @ (*)
   begin
     case (state)
       PHASE1:
@@ -52,33 +64,26 @@ module blur
     endcase
   end
 
-  always @ (state, in_pixels)
+  always @ (*)
   begin
-    temp1 = 0;
-    temp2 = 0;
-    out_pixel = 0;
-
     case (state)
       PHASE1:
       begin
         addend1 = { 5'd0, in_pixels[0] };
         addend2 = { 3'd0, in_pixels[1], 2'd0 }; // << 2
         addend3 = { 2'd0, in_pixels[2], 3'd0 }; // << 3
-        temp1 = sum;
       end
       PHASE2:
       begin
         addend1 = temp1;
         addend2 = { 3'd0, in_pixels[3], 2'd0 }; // << 2
         addend3 = { 5'd0, in_pixels[4] };
-        temp2 = sum;
       end
       PHASE3:
       begin
         addend1 = temp2 >> 5;
         addend2 = temp2 >> 6;
         addend3 = temp2 >> 7;
-        out_pixel = sum[7:0];
       end
     endcase
   end
