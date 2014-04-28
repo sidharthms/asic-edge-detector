@@ -8,7 +8,7 @@ module blur
   input wire clk,
   input wire n_rst,
 	input wire en,
-	input wire [7:0] in_pixels [5],
+	input wire [4:0][7:0] in_pixels,
 	output reg [7:0] out_pixel,
 	output wire final_stage
 );
@@ -23,6 +23,9 @@ module blur
   reg [12:0] temp1;
   reg [12:0] temp2;
 
+  assign final_stage = state == PHASE3;
+  assign out_pixel = sum[7:0];
+
   adder_3 #(.BITS(13)) adder(
     .addend1(addend1),
     .addend2(addend2),
@@ -35,6 +38,11 @@ module blur
       state <= PHASE1;
     else
       state <= next_state;
+
+    if (state == PHASE1)
+      temp1 <= sum;
+    if (state == PHASE2)
+      temp2 <= sum;
   end
 
   always @ (*)
@@ -56,31 +64,24 @@ module blur
 
   always @ (*)
   begin
-    temp1 = 0;
-    temp2 = 0;
-    out_pixel = 0;
-
     case (state)
       PHASE1:
       begin
         addend1 = { 5'd0, in_pixels[0] };
         addend2 = { 3'd0, in_pixels[1], 2'd0 }; // << 2
         addend3 = { 2'd0, in_pixels[2], 3'd0 }; // << 3
-        temp1 = sum;
       end
       PHASE2:
       begin
         addend1 = temp1;
         addend2 = { 3'd0, in_pixels[3], 2'd0 }; // << 2
         addend3 = { 5'd0, in_pixels[4] };
-        temp2 = sum;
       end
       PHASE3:
       begin
         addend1 = temp2 >> 5;
         addend2 = temp2 >> 6;
         addend3 = temp2 >> 7;
-        out_pixel = sum[7:0];
       end
     endcase
   end

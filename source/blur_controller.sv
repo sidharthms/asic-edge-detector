@@ -14,51 +14,92 @@ module blur_controller
   input  wire [31:0] anchor_x,
   input  wire [31:0] anchor_y,
 
-  input  wire [7:0] blur_in [20],
-  output reg [7:0] blur_out [16],
+  input  wire [19:0][7:0] blur_in,
+  output reg  [15:0][7:0] blur_out,
   output reg blur_final             // Filter phase completed for all pixels.
 );
   
   wire anchor_on_first_row;
 
-  reg  [7:0] blur_data [5][16];
-  reg  [7:0] blur_data_new [20];
+  reg  [4:0][15:0][7:0] blur_data;
+  reg  [19:0][7:0] blur_data_new;
 
-  typedef enum {IDLE, COPY, PROCESSING, FINAL} state_type;
+  typedef enum {IDLE, COPY, PROCESSING} state_type;
   state_type state, next_state;
 
-  wire clear;
+  wire index_clear;
   wire [3:0] index;
-  wire on_last;
-  reg stage;
+  wire [3:0] index_x1;
+  wire [3:0] index_x2;
+  wire [3:0] index_y1;
+  wire [3:0] index_y2;
 
-  wire unit_en;
-  reg  [7:0] in_pixels [5];
-  wire [7:0] out_pixel;
+  wire unit_en_x;
+  wire unit_en_y;
+  reg  [4:0][7:0] in_pixels_x1;
+  reg  [4:0][7:0] in_pixels_x2;
+  reg  [4:0][7:0] in_pixels_y1;
+  reg  [4:0][7:0] in_pixels_y2;
+  wire [7:0] out_pixel_x1;
+  wire [7:0] out_pixel_x2;
+  wire [7:0] out_pixel_y1;
+  wire [7:0] out_pixel_y2;
   wire unit_final;
+  wire unit_final_x;
+  wire unit_final_y;
 
   assign anchor_on_first_row = anchor_x == 0;
-  assign clear = next_state == IDLE;
-  assign unit_en = next_state == PROCESSING;
+  assign index_clear = next_state != PROCESSING;
+
+  assign index_x1 = 2*index;
+  assign index_x2 = 2*index + 1;
+  assign index_y1 = 2*(index-1);
+  assign index_y2 = 2*(index-1) + 1;
+
+  // Blur filter should be enabled only when all inputs are stable.
+  assign unit_en_x = index != 8 && state == PROCESSING; 
+  assign unit_en_y = index != 0 && state == PROCESSING; 
+  assign unit_final = unit_final_x || unit_final_y;
 
   flex_counter #(.NUM_CNT_BITS(4)) index_counter(
       .clk(clk),
       .n_rst(n_rst),
-      .clear(clear),
+      .clear(index_clear),
       .count_enable(unit_final),
-      .rollover_val(15),
-      .count_out(index),
-      .rollover_flag(on_last));
+      .rollover_val(8),
+      .count_out(index));
 
-  blur filter(
+  blur filter_x1(
       .clk(clk),
       .n_rst(n_rst),
-      .en(unit_en),
-      .in_pixels(in_pixels),
-      .out_pixel(out_pixel),
-      .final_stage(unit_final));
+      .en(unit_en_x),
+      .in_pixels(in_pixels_x1),
+      .out_pixel(out_pixel_x1),
+      .final_stage(unit_final_x));
 
-  assign blur_final = stage == 1 && on_last;
+  blur filter_x2(
+      .clk(clk),
+      .n_rst(n_rst),
+      .en(unit_en_x),
+      .in_pixels(in_pixels_x2),
+      .out_pixel(out_pixel_x2));
+
+  blur filter_y1(
+      .clk(clk),
+      .n_rst(n_rst),
+      .en(unit_en_y),
+      .in_pixels(in_pixels_y1),
+      .out_pixel(out_pixel_y1),
+      .final_stage(unit_final_y));
+
+  blur filter_y2(
+      .clk(clk),
+      .n_rst(n_rst),
+      .en(unit_en_y),
+      .in_pixels(in_pixels_y2),
+      .out_pixel(out_pixel_y2));
+
+  assign blur_final = index == 8 && unit_final_y;
 
   always @ (posedge clk, negedge n_rst)
   begin
@@ -67,33 +108,35 @@ module blur_controller
     else
       state <= next_state;
 
-    if (next_state == COPY)
-      stage <= 0;
-    else if (on_last)
-      stage <= 1;
-
     // Copy in fresh data at the beginning.
     if (next_state == COPY)
     begin
       blur_data_new <= blur_in;
-      blur_data[1:4] = blur_data[0:3];
+      blur_data[4:1] = blur_data[3:0];
     end
 
-    // Perform X blur along fresh data in stage 0 and Y blur along cached rows
-    // in stage 1.
-    if (stage == 0)
-
-      // If on the first row initialize row cache to results of first row to
-      // prevent "glow" around image edge.
+    if (unit_en_x)
+    begin
       if (anchor_on_first_row)
       begin
         for (int i = 0; i < 5; i=i+1)
-          blur_data[index][i] <= out_pixel;
+        begin
+          blur_data[i][index_x1] <= out_pixel_x1;
+          blur_data[i][index_x2] <= out_pixel_x2;
+        end
       end
       else
-        blur_data[index][0] <= out_pixel;
-    else
-      blur_out[index] <= out_pixel;
+      begin
+        blur_data[0][index_x1] <= out_pixel_x1;
+        blur_data[0][index_x2] <= out_pixel_x2;
+      end
+    end
+
+    if (unit_en_y)
+    begin
+      blur_out[index_y1] <= out_pixel_y1;
+      blur_out[index_y2] <= out_pixel_y2;
+    end
   end
 
   always @ (*)
@@ -125,12 +168,13 @@ module blur_controller
 
   always @ (*)
   begin
-    if (stage == 0)
-      in_pixels = blur_data_new[index +: 5];
-    else
+    in_pixels_x1 = blur_data_new[index_x1 +: 5];
+    in_pixels_x2 = blur_data_new[index_x2 +: 5];
+
+    for (int i = 0; i < 5; i=i+1)
     begin
-      for (int i = 0; i < 5; i=i+1)
-        in_pixels[i] = blur_data[i][index];
+      in_pixels_y1[i] = blur_data[i][index_y1];
+      in_pixels_y2[i] = blur_data[i][index_y2];
     end
   end
 endmodule
