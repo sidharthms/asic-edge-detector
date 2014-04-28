@@ -66,7 +66,7 @@ module blur_controller
       .n_rst(n_rst),
       .clear(index_clear),
       .count_enable(unit_final),
-      .rollover_val(8),
+      .rollover_val(4'd8),
       .count_out(index));
 
   blur filter_x1(
@@ -106,36 +106,38 @@ module blur_controller
     if (n_rst == 1'b0)
       state <= IDLE;
     else
+    begin
       state <= next_state;
 
-    // Copy in fresh data at the beginning.
-    if (next_state == COPY)
-    begin
-      blur_data_new <= blur_in;
-      blur_data[4:1] = blur_data[3:0];
-    end
-
-    if (unit_en_x)
-    begin
-      if (anchor_on_first_row)
+      // Copy in fresh data at the beginning.
+      if (next_state == COPY)
       begin
-        for (int i = 0; i < 5; i=i+1)
+        blur_data_new <= blur_in;
+        blur_data[4:1] <= blur_data[3:0];
+      end
+
+      if (unit_en_x)
+      begin
+        if (anchor_on_first_row)
         begin
-          blur_data[i][index_x1] <= out_pixel_x1;
-          blur_data[i][index_x2] <= out_pixel_x2;
+          for (int i = 0; i < 5; i=i+1)
+          begin
+            blur_data[i][index_x1] <= out_pixel_x1;
+            blur_data[i][index_x2] <= out_pixel_x2;
+          end
+        end
+        else
+        begin
+          blur_data[0][index_x1] <= out_pixel_x1;
+          blur_data[0][index_x2] <= out_pixel_x2;
         end
       end
-      else
-      begin
-        blur_data[0][index_x1] <= out_pixel_x1;
-        blur_data[0][index_x2] <= out_pixel_x2;
-      end
-    end
 
-    if (unit_en_y)
-    begin
-      blur_out[index_y1] <= out_pixel_y1;
-      blur_out[index_y2] <= out_pixel_y2;
+      if (unit_en_y)
+      begin
+        blur_out[index_y1] <= out_pixel_y1;
+        blur_out[index_y2] <= out_pixel_y2;
+      end
     end
   end
 
@@ -168,8 +170,11 @@ module blur_controller
 
   always @ (*)
   begin
-    in_pixels_x1 = blur_data_new[index_x1 +: 5];
-    in_pixels_x2 = blur_data_new[index_x2 +: 5];
+    for (int i = 0; i < 5; i=i+1)
+    begin
+      in_pixels_x1[i] = blur_data_new[index_x1 + i];
+      in_pixels_x2[i] = blur_data_new[index_x2 + i];
+    end
 
     for (int i = 0; i < 5; i=i+1)
     begin

@@ -37,12 +37,14 @@ module blur
     if (n_rst == 1'b0)
       state <= PHASE1;
     else
+    begin
       state <= next_state;
 
-    if (state == PHASE1)
-      temp1 <= sum;
-    if (state == PHASE2)
-      temp2 <= sum;
+      if (state == PHASE1)
+        temp1 <= sum;
+      if (state == PHASE2)
+        temp2 <= sum;
+    end
   end
 
   always @ (*)
