@@ -3,7 +3,7 @@
 // Created:     4/23/2014
 // Author:      Sidharth Mudgal Sunil Kumar
 
-module cyclic_adder
+module adder_3
 #(
 	parameter BITS = 8
 )
@@ -11,7 +11,7 @@ module cyclic_adder
 	input wire [BITS-1:0] addend1,
 	input wire [BITS-1:0] addend2,
 	input wire [BITS-1:0] addend3,
-	output wire [BITS-1:0] sum,
+	output wire [BITS-1:0] sum
 );
-  sum = addend1 + addend2 + addend3;
+  assign sum = addend1 + addend2 + addend3;
 endmodule

@@ -5,10 +5,12 @@
 
 module blur
 (
+  input wire clk,
+  input wire n_rst,
 	input wire en,
 	input wire [7:0] in_pixels [5],
-	input wire [7:0] out_pixel,
-	output wire final,
+	output reg [7:0] out_pixel,
+	output wire final_stage
 );
   typedef enum {PHASE1, PHASE2, PHASE3} state_type;
   state_type state, next_state;
@@ -30,12 +32,12 @@ module blur
   always @ (posedge clk, negedge n_rst)
   begin
     if (n_rst == 1'b0)
-      state <= IDLE;
+      state <= PHASE1;
     else
       state <= next_state;
   end
 
-  always @ (state, en)
+  always @ (*)
   begin
     case (state)
       PHASE1:
@@ -52,7 +54,7 @@ module blur
     endcase
   end
 
-  always @ (state, in_pixels)
+  always @ (*)
   begin
     temp1 = 0;
     temp2 = 0;

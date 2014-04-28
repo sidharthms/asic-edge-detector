@@ -11,12 +11,12 @@ module blur_controller
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x;
-  input  wire [31:0] anchor_y;
+  input  wire [31:0] anchor_x,
+  input  wire [31:0] anchor_y,
 
-  input  wire [7:0] blur_in [20];
-  output wire [7:0] blur_out [16];
-  output reg blur_final;             // Filter phase completed for all pixels.
+  input  wire [7:0] blur_in [20],
+  output reg [7:0] blur_out [16],
+  output reg blur_final             // Filter phase completed for all pixels.
 );
   
   wire anchor_on_first_row;
@@ -24,7 +24,7 @@ module blur_controller
   reg  [7:0] blur_data [5][16];
   reg  [7:0] blur_data_new [20];
 
-  typedef enum {IDLE, COPY, PROCESS, FINAL} state_type;
+  typedef enum {IDLE, COPY, PROCESSING, FINAL} state_type;
   state_type state, next_state;
 
   wire clear;
@@ -33,7 +33,7 @@ module blur_controller
   reg stage;
 
   wire unit_en;
-  wire [7:0] in_pixels [5];
+  reg  [7:0] in_pixels [5];
   wire [7:0] out_pixel;
   wire unit_final;
 
@@ -51,10 +51,12 @@ module blur_controller
       .rollover_flag(on_last));
 
   blur filter(
+      .clk(clk),
+      .n_rst(n_rst),
       .en(unit_en),
       .in_pixels(in_pixels),
       .out_pixel(out_pixel),
-      .final(unit_final));
+      .final_stage(unit_final));
 
   assign blur_final = stage == 1 && on_last;
 
@@ -118,7 +120,7 @@ module blur_controller
         else
           next_state = PROCESSING;
       end
-    end
+    endcase
   end
 
   always @ (*)
@@ -126,7 +128,9 @@ module blur_controller
     if (stage == 0)
       in_pixels = blur_data_new[index +: 5];
     else
+    begin
       for (int i = 0; i < 5; i=i+1)
-        in_pixels[i] = blur_data[i][index]
+        in_pixels[i] = blur_data[i][index];
+    end
   end
 endmodule
