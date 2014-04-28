@@ -15,13 +15,14 @@ module tb_ARM
 	localparam DUT_ADDR = 32'b000001111;
 	localparam BMP_HEADER_SIZE = 50;
   	localparam W_ADDR_SIZE_BITS = 16;
-  	localparam W_DATA_SIZE_WORDS = 1;
+  	localparam W_DATA_SIZE_WORDS = 4;
   	localparam W_WORD_SIZE_BYTES = 1;	
 	//Simulation Timestep
 	localparam TIMESTEP = 5;
 	localparam CLK_T = 12; 
 	
 	reg tb_clk;
+	reg tb_rst;
 
 	//Bus Signals
 	//Bus Clock
@@ -61,7 +62,7 @@ module tb_ARM
 	reg [BMP_HEADER_SIZE:0][7:0] bmp_header;
 	
 	/*SRAM ports*/	
-	localparam DATA_BUS_FLOAT = 16'hz;
+	localparam DATA_BUS_FLOAT = 32'hz;
 	//The number of the initialization file name to use during the next requested memory init
 	//Only use values from 0 thru (2^31 - 1) 
 	int unsigned init_file_number;
@@ -85,12 +86,16 @@ module tb_ARM
 	//Memory interface signals
 	reg read_enable;
 	reg write_enable;
-	reg [W_ADDR_SIZE_BITS - 1:0] address;
-	reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] w_data;
-	wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] r_data;
+	reg [W_ADDR_SIZE_BITS - 1:0] address, tb_address;
+	reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] w_data, tb_w_data;
+	wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] r_data, tb_r_data;
 	wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] bidata;
+	//Testbench for SRAM IFACE
+	reg tb_start;
+	reg io_done;
+	reg tb_writemode;
 
-	//Bidirectional Switch
+	//Bidirectional Logic for SRAM
 	assign r_data = (read_enable == 1) ? bidata : DATA_BUS_FLOAT;
         assign bidata = (write_enable == 1) ? w_data : DATA_BUS_FLOAT;
 
@@ -106,14 +111,32 @@ module tb_ARM
                                     .write_enable(write_enable), 
                                     .address(address), 
                                     .data(bidata));
- 	
+
+
+	sram_iface SRAMIF(.clk(tb_clk),
+			  .n_rst(tb_rst),
+			  .start(tb_start),
+		          .writemode(tb_writemode),
+			  .i_address(tb_address),
+			  .i_w_data(tb_w_data),
+			  .i_r_data(tb_r_data),
+			  .io_done(io_done),
+			  .read_enable(read_enable),
+			  .write_enable(write_enable),
+			  .address(address),
+			  .w_data(w_data),
+			  .r_data(r_data));
+
    //Test bench process
    initial
     begin
 		//rest
 		mem_clr = 1'b0;
-		write_enable = 1'b0;
-		read_enable = 1'b0;
+		//write_enable = 1'b0;
+		//read_enable = 1'b0;
+		tb_address = 0;
+		tb_w_data = 0;
+		tb_writemode = 0;
 		mem_init = 1'b0;
 		mem_dump = 1'b0;
 		
@@ -128,8 +151,8 @@ module tb_ARM
 		start_address = 0;
 		last_address = 65535;
 		
-		address <= 0;
-		read_enable <= 0;
+		//address <= 0;
+		//read_enable <= 0;
 
 		//Load Init File into Memory		
 		mem_init = 1'b1;
@@ -139,16 +162,29 @@ module tb_ARM
 		#(CLK_T*10);
 
 		//Modify some memory
-		address <= 1'b1;
-		write_enable <= 1;
-		w_data <= 16'hAA;
-		#(CLK_T);
-		write_enable <= 1'b0;
+		//address <= 16'b00000001;
+		//write_enable <= 1;
+		//w_data <= 32'hAAAAAAAA;
+		//#(CLK_T);
+		//write_enable <= 1'b0;
 
+		//#(TIMESTEP);
+
+		//write_enable <= 0;		
+
+		//Send some request to SRAM IFACE
+		tb_rst = 1'b0;
 		#(TIMESTEP);
-
-		write_enable <= 0;		
-
+		tb_rst = 1'b1;
+		tb_address = 16'b0000001;
+		tb_w_data = 32'hAAAAAAAA;
+		tb_writemode = 1'b1;
+		//strobe start
+		tb_start = 1'b1;
+		#(5*TIMESTEP);
+		tb_start = 1'b0;
+			
+		//DUMP MEMORY
 		#(CLK_T);
 	
                 mem_dump = 1'b1;
@@ -158,13 +194,13 @@ module tb_ARM
 		
    end
 	
-	/*always
+	always
 	begin : CLK_GEN
 		tb_clk = 1'b0;
 		#(CLK_T / 2);
 		tb_clk = 1'b1;
 		#(CLK_T / 2);
-	end*/
+	end
 
 	function void putImageInSRAM();
 		//read image file unpacked by python
