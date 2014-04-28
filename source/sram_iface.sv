@@ -30,12 +30,12 @@ module sram_iface
 	input wire [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] r_data
 );
 
-typedef enum {IDLE,IO, WAIT1,WAIT2,WAIT3,WAIT4,WAIT5,WAIT6,WAIT7,WAIT8,WAIT9,WAIT10,WAIT11,WAIT12} state_type;
+typedef enum {IDLE,IO} state_type;
 state_type state, next_state;
 
 /* TIMER SIGNALS */
 
-/*reg tim_rst;
+reg tim_rst;
 reg tim_clear;
 reg tim_en;
 reg [3:0] index;
@@ -49,7 +49,7 @@ flex_counter #(.NUM_CNT_BITS(4)) timer(
       .rollover_val(4'b1100),
       .count_out(index),
       .rollover_flag(tim_done));
-*/
+
 assign write_enable = writemode;
 assign read_enable = ~writemode;
 
@@ -68,24 +68,27 @@ assign i_r_data = r_data;   //redirection
 
 always_comb
 begin
-	//tim_clear = 1'b0;
+	tim_clear = 1'b0;
 	io_done = 1'b0;
-	//tim_rst = 1'b1;
-
+	tim_rst = 1'b1;
 	if(state == IDLE) begin
 		next_state = IDLE;
+		tim_en = 1'b0;
 		//wait for start to be strobed
 		if(start == 1'b1) begin
 			next_state = IO;
+			//Begin timer
+			tim_clear = 1'b1;
+			tim_en = 1'b1; 
 		end
 			
 	end else if(state == IO) begin
-		next_state = WAIT1;
-	end else if(state == WAIT1) begin
-		next_state = WAIT2;
-	end else if(state == WAIT2) begin
-		next_state = IDLE;
-		io_done = 1;
+		next_state = IO;
+		if(tim_done == 1'b1) begin
+			tim_rst = 1'b0;
+			io_done = 1'b1;
+			next_state = IDLE;
+		end
 	end
 end
 

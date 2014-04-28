@@ -176,8 +176,8 @@ module tb_ARM
 		tb_rst = 1'b0;
 		#(TIMESTEP);
 		tb_rst = 1'b1;
-		tb_address = 16'b0000001;
-		tb_w_data = 32'hAF;
+		tb_address = 16'hFA;
+		tb_w_data = 32'hAB;
 		tb_writemode = 1'b1;
 		//strobe start
 		tb_start = 1'b1;
@@ -192,11 +192,25 @@ module tb_ARM
 	        #(CLK_T*2);
 		//LOAD MEMORY
 		tb_writemode = 1'b0;
-		tb_address = 16'b00000001;
+		tb_address = 16'h01;
 		//strobe start
 		tb_start = 1'b1;
 		#(5*TIMESTEP);
 		tb_start = 1'b0;
+
+		#(CLK_T); 
+		//Do something again
+		tb_rst = 1'b0;
+                #(TIMESTEP);
+                tb_rst = 1'b1;
+                tb_address = 16'hFB;
+                tb_w_data = 32'hCD;
+                tb_writemode = 1'b1;
+                //strobe start
+                tb_start = 1'b1;
+                #(5*TIMESTEP);
+                tb_start = 1'b0;
+
 
 		//DUMP MEMORY
 		#(CLK_T*2);
