@@ -259,15 +259,14 @@ module tb_ARM
 		$display("Memory loaded and verified");
 		$display("Testing Pixel Controller");
 		
-	
+		tbp_num_pix_read <= 8;
 		tbp_enable <= 1;
 		tbp_address_read_offset <= 0;
-
-		for(i = 0; i < current_addr; i = i+1) begin		
-			@(negedge tbp_read_now);
-			$display("[PXCTL] PX %x is RGB<%x>", tbp_address_read_offset + i, r_data);
-			//@(negedge tbp_read_now);	
 		
+		for(i = 0; i < 20; i = i+1) begin		
+			@(negedge tbp_read_now);
+			$display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
+			$display("------------ accessible via reg as <%d>",  tbp_data_out[i]);
 		end
 
 		//tbp_enable <= 0;

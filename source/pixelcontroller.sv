@@ -32,7 +32,7 @@ module pixelcontroller(
 	output reg write_enable
 );
 
-typedef enum {IDLE, WRITE_OP, READ_OP} state_type;
+typedef enum {IDLE, WRITE_OP, READ_OP, DONE} state_type;
 state_type state, next_state;
 
 always @ (posedge clk, negedge n_rst)
@@ -55,6 +55,9 @@ reg Rtim_rst;
 reg Rtim_clear;
 reg Rtim_en;
 reg [3:0] Rindex;
+
+/* Temporary Regs */
+reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
 
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .clk(clk),
@@ -82,15 +85,29 @@ begin
 			total_write = 0;
 		end
 	end else if(state == READ_OP) begin
-		next_state = READ_OP; //stay in READ_OP unless operation is finished on this pixel
-		
+		next_state = READ_OP; //stay in READ_OP unless operation is finished
+		if(total_read == num_pix_read) begin
+			next_state = DONE;
+		end	
+
 		address = address_read_offset + total_read; //Output address wanted
+			
 		write_enable = 1'b0;
 		read_enable = 1'b1; //Enable read
 		
 		if(read_now) begin
+			//sum RBG
+			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
+			//store only grayscale equivalent by averaging-ish 
+			data_out[total_read] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8));
+			//move on
 			total_read = total_read + 1;
 		end
+	end else if(state == DONE) begin
+		next_state = DONE;
+		//Stay here and rot forever
+		read_enable = 1'b0;
+		Rtim_en = 1'b0;
 	end
 end
 endmodule
