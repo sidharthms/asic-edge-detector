@@ -7,15 +7,15 @@
 // Description: Does the talking to SRAM
 
 localparam W_ADDR_SIZE_BITS = 16;
-localparam W_DATA_SIZE_WORDS = 4;
-localparam W_WORD_SIZE_BYTES = 1;
+localparam W_DATA_SIZE_WORDS = 2;
+localparam W_WORD_SIZE_BYTES = 2;
 localparam DATA_BUS_FLOAT = 32'hz;
 
 module sram_iface
 (
 	//Internal signals
 	input wire clk,
-	input wire n_rst,
+	input wire rst,
 	input wire start,
 	input wire writemode, //0 read, 1 write
 	input wire [0:W_ADDR_SIZE_BITS - 1] i_address,
@@ -32,6 +32,17 @@ module sram_iface
 
 typedef enum {IDLE,IO} state_type;
 state_type state, next_state;
+
+always @ (posedge clk, negedge rst)
+begin
+	if(1'b0 == rst) begin
+		state <= IDLE;
+		//state <= next_state;
+	end else begin
+		state <= next_state;
+	end
+end
+
 
 /* TIMER SIGNALS */
 
@@ -52,16 +63,16 @@ flex_counter #(.NUM_CNT_BITS(4)) timer(
 
 assign write_enable = writemode;
 assign read_enable = ~writemode;
-
+/*
 always @ (posedge clk, negedge n_rst)
 begin
 	if(n_rst == 1'b1) begin
-		state = next_state;
+		state <= next_state;
 	end else if (n_rst == 1'b0) begin
-		state = IDLE;
-	end
+		state <= IDLE;
+ 	end
 end
-
+*/
 assign address = i_address; //redirection
 assign w_data = i_w_data;   //redirection
 assign i_r_data = r_data;   //redirection
