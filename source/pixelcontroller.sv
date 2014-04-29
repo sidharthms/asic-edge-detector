@@ -23,6 +23,7 @@ module pixelcontroller(
 	input wire [4:0] num_pix_read,		   //how many pixels do we need to read
 	input wire [4:0] num_pix_write,		   //how many pixels do we need to write
 	input wire n_rst,
+	output wire read_now,        //flag that pixel data must be read now
 	//SRAM Controls
 	output reg [W_ADDR_SIZE_BITS - 1:0] address,
 	output reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] w_data,
@@ -54,16 +55,15 @@ reg Rtim_rst;
 reg Rtim_clear;
 reg Rtim_en;
 reg [3:0] Rindex;
-reg Rtim_done;
 
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .clk(clk),
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(5),//supposed to be 12 nano 
+      .rollover_val(3),//supposed to be 12 nano 
       .count_out(Rindex),
-      .rollover_flag(Rtim_done));
+      .rollover_flag(read_now));
 
 /* WRITE TIMER SIGNALS goes below */
 
@@ -88,7 +88,7 @@ begin
 		write_enable = 1'b0;
 		read_enable = 1'b1; //Enable read
 		
-		if(Rtim_done) begin
+		if(read_now) begin
 			total_read = total_read + 1;
 		end
 	end

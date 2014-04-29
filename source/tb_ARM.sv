@@ -114,6 +114,7 @@ module tb_ARM
 	reg [W_ADDR_SIZE_BITS - 1:0] tbp_address_write_offset, tbp_address_read_offset;
 	reg [4:0] tbp_num_pix_read, tbp_num_pix_write;
 	reg tbp_n_rst;
+	reg tbp_read_now;
 		
 
 	off_chip_sram_wrapper #(W_ADDR_SIZE_BITS,3,1,10,10) SRAM(.init_file_number(init_file_number), 
@@ -155,6 +156,7 @@ module tb_ARM
 	.num_pix_read(tbp_num_pix_read),
 	.num_pix_write(tbp_num_pix_write),
 	.n_rst(tbp_n_rst),
+	.read_now(tbp_read_now),
 	.address(paddress),
 	.w_data(pw_data),
 	.r_data(r_data),
@@ -257,14 +259,17 @@ module tb_ARM
 		$display("Memory loaded and verified");
 		$display("Testing Pixel Controller");
 		
-		//for(i = 0; i < current_addr; i = i+1) begin
+	
 		tbp_enable <= 1;
 		tbp_address_read_offset <= 0;
-			
-		//$display("[PXCTL] PX %x is RGB<%x>", tbp_address_read_offset + i, r_data);
-		#(CLK_T*2);	
+
+		for(i = 0; i < current_addr; i = i+1) begin		
+			@(negedge tbp_read_now);
+			$display("[PXCTL] PX %x is RGB<%x>", tbp_address_read_offset + i, r_data);
+			//@(negedge tbp_read_now);	
 		
-		//end
+		end
+
 		//tbp_enable <= 0;
 		//tbp_n_rst <= 0;
 	end
