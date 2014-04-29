@@ -7,8 +7,8 @@
 // Description: Does the talking to SRAM
 
 localparam W_ADDR_SIZE_BITS = 16;
-localparam W_DATA_SIZE_WORDS = 2;
-localparam W_WORD_SIZE_BYTES = 2;
+localparam W_DATA_SIZE_WORDS = 3;
+localparam W_WORD_SIZE_BYTES = 1;
 localparam DATA_BUS_FLOAT = 32'hz;
 
 module sram_iface

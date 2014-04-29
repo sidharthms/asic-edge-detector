@@ -22,8 +22,8 @@ entity off_chip_sram_wrapper is
 
 		W_ADDR_SIZE_BITS  : natural := 16;    -- Address bus size in bits/pins with addresses corresponding to 
 																					-- the starting word of the accesss
-		W_WORD_SIZE_BYTES : natural := 1;   	-- Word size of the memory in bytes
-		W_DATA_SIZE_WORDS : natural := 1;   	-- Data bus size in "words"
+		W_WORD_SIZE_BYTES : natural := 2;   	-- Word size of the memory in bytes
+		W_DATA_SIZE_WORDS : natural := 2;   	-- Data bus size in "words"
 		W_READ_DELAY      : time    := 10 ns; 	-- Delay/latency per read access (total time between start of supplying address and when the data read from memory appears on the r_data port)
 																					-- Keep the 10 ns delay for 0.5u off-chip SRAM
 		W_WRITE_DELAY     : time    := 10 ns 	-- Delay/latency per write access (total time between start of supplying address and when the w_data value is written into memory)
@@ -59,10 +59,10 @@ architecture wrapper of off_chip_sram_wrapper is
 	component scalable_off_chip_sram is
 	generic (
 						-- Memory Model parameters
-						ADDR_SIZE_BITS	: natural	:= 12;		-- Address bus size in bits/pins with addresses corresponding to 
+						ADDR_SIZE_BITS	: natural	:= 16;		-- Address bus size in bits/pins with addresses corresponding to 
 																								-- the starting word of the accesss
-						WORD_SIZE_BYTES	: natural	:= 1;			-- Word size of the memory in bytes
-						DATA_SIZE_WORDS	: natural	:= 1;			-- Data bus size in "words"
+						WORD_SIZE_BYTES	: natural	:= 2;			-- Word size of the memory in bytes
+						DATA_SIZE_WORDS	: natural	:= 2;			-- Data bus size in "words"
 						READ_DELAY			: time		:= 10 ns;	-- Delay/latency per read access
 						WRITE_DELAY			: time		:= 10 ns		-- Delay/latency per write access
 					);
