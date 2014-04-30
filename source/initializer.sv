@@ -35,18 +35,18 @@ module initializer
 	input wire 		  ahb_hbusreq, //bus request  
 	output reg                ahb_hready, //slave is ready
 	output reg                ahb_hresp, //transfer response
-	output reg [11:0] 	  width,
-	output reg [11:0] 	  height,
-	output reg [31:0] 	  readStartAddress,
-	output reg [31:0] 	  writeStartAddress,
+	output reg [BUSWIDTH-1:0] 	  width,
+	output reg [BUSWIDTH-1:0] 	  height,
+	output reg [BUSWIDTH-1:0] 	  readStartAddress,
+	output reg [BUSWIDTH-1:0] 	  writeStartAddress,
 	output reg 		  filterType,
-        output reg                enable
+        output reg                final_enable 
 );
 
    
    //READ_ADDR1: state that verify the address sent from the bus to match slave address, if true, go read width
    //READ_ADDR2: state that verify the address sent from the bus to match slave address, if true, go read height
-   typedef enum {IDLE, READ_HEIGHT, READ_WIDTH, READ_ADD1, READ_ADD2, READ_ADD3, READ_FILTER, KICKSTART} state_type;
+   typedef enum {IDLE, READ_HEIGHT, READ_WIDTH, READ_ADD1, READ_ADD2, READ_ADD3, READ_ADD4,READ_ADD5,READ_RSTADD,READ_WSTADD,READ_FILTER, KICKSTART} state_type;
    state_type state, nextstate;
          
   // reg 		flex_clear, flex_en;   
@@ -63,24 +63,21 @@ module initializer
       .rollover_flag(flex_done));
  */ 
 
-   always @ (posedge ahb_hclk, negedge n_rst)
+   always_ff @ (posedge ahb_hclk, negedge n_rst) 
    begin
-      if(n_rst == 1'b1) begin
-	 state = nextstate;
-      end else if(n_rst == 1'b0) begin
-         state = IDLE;
-         //TODO: reset all other signals
+      $display("n_rst out is: %d",n_rst);
+      if(n_rst == 1'b0) begin
+	 state = IDLE;
+         $display("n_rst is: %d",n_rst);
+      end else if(n_rst == 1'b1) begin
+         state = nextstate;
+         $display("n_rst here is : %d",n_rst);
       end
    end
 
-   always_comb begin: next_state
+   always @ (*) begin: next_state
       ahb_hready='0;
       ahb_hresp='0;
-      width='0;
-      height='0;
-      readStartAddress='0;
-      writeStartAddress='0;
-      filterType='0;
       nextstate=IDLE;
       case(state)
 	IDLE: begin
@@ -92,6 +89,7 @@ module initializer
 	   writeStartAddress='0;
 	   filterType='0;
 	   nextstate=READ_ADD1;
+           $display("ahb_haddr in IDLE is:%h",ahb_haddr);
 	   
 	end
 
@@ -100,6 +98,8 @@ module initializer
 	   ahb_hresp=1;
 	   width='0;
 	   height='0;
+           $display("ahb_haddr is:%h",ahb_haddr);
+           $display("slaveadd is:%h",SLAVEADDRESS);
 	   
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_WIDTH;
@@ -136,14 +136,53 @@ module initializer
            nextstate=READ_ADD3;
 	end
 
+
         READ_ADD3: begin
+	   ahb_hready='0;
+	   ahb_hresp='1;
+
+           if (ahb_haddr == SLAVEADDRESS) begin
+	      nextstate = READ_RSTADD;
+	   end else begin
+	      nextstate = READ_ADD3;
+	   end
+	end
+
+        READ_RSTADD: begin
+	   ahb_hready='0;
+	   ahb_hresp=1;
+	   readStartAddress=ahb_hrdata;
+           nextstate=READ_ADD4;
+	end
+
+
+        READ_ADD4: begin
+	   ahb_hready='0;
+	   ahb_hresp='1;
+
+           if (ahb_haddr == SLAVEADDRESS) begin
+	      nextstate = READ_WSTADD;
+	   end else begin
+	      nextstate = READ_ADD4;
+	   end
+	end
+
+        READ_WSTADD: begin
+	   ahb_hready='0;
+	   ahb_hresp=1;
+	   writeStartAddress=ahb_hrdata;
+           nextstate=READ_ADD5;
+	end
+
+
+        READ_ADD5: begin
 	   ahb_hready='0;
 	   ahb_hresp='1;
  
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_FILTER;
 	   end else begin
-	      nextstate = READ_ADD3;
+	      nextstate = READ_ADD5;
 	   end
 	end
 
@@ -159,7 +198,7 @@ module initializer
 	KICKSTART: begin
 	   ahb_hready=1;
 	   ahb_hresp='0;
-           enable = 1;
+           final_enable = 1;
            nextstate = KICKSTART;
        end
 
