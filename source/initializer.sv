@@ -65,11 +65,11 @@ module initializer
 
    always_ff @ (posedge ahb_hclk, negedge n_rst) 
    begin
-      $display("n_rst out is: %d",n_rst);
-      if(n_rst == 1'b0) begin
+      //$display("n_rst out is: %d",n_rst);
+      if(~n_rst) begin
 	 state = IDLE;
          $display("n_rst is: %d",n_rst);
-      end else if(n_rst == 1'b1) begin
+      end else begin
          state = nextstate;
          $display("n_rst here is : %d",n_rst);
       end
