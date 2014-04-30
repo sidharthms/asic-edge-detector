@@ -244,33 +244,58 @@ module tb_ARM
 			$display("[DIRECT] content at memory %x is %x", address, r_data);
  			
 		end 
-
-		$display("[DIRECT] Dumping to memory");
-		//DUMP MEMORY
-		#(CLK_T*2);
-	
-	
-		mem_dump = 1'b1;
-		#(TIMESTEP);
-		mem_dump = 1'b0;
-		
+		//Toggle Setup Mode Off
 		global_setup = 0;
 		#(CLK_T);
-		$display("Memory loaded and verified");
+		
 		$display("Testing Pixel Controller");
-		
-		tbp_num_pix_read <= 8;
+		//Test Parameters for Pixel Controller
+		tbp_num_pix_write <= 2;	
+		tbp_num_pix_read <= 9;
 		tbp_enable <= 1;
+		tbp_address_write_offset <= 16'h00;
 		tbp_address_read_offset <= 0;
+		tbp_data_in[0] = 8'hBB;
+		tbp_data_in[1] = 8'hBF;
 		
-		for(i = 0; i < 20; i = i+1) begin		
+		#(TIMESTEP);
+		//Check Output in Data Out Registers
+		for(i = 0; i < 9; i = i+1) begin		
 			@(negedge tbp_read_now);
 			$display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
 			$display("------------ accessible via reg as <%d>",  tbp_data_out[i]);
 		end
+		
+		#(CLK_T*10);
 
-		//tbp_enable <= 0;
-		//tbp_n_rst <= 0;
+		//Double Check Memory	
+		$display("[DIRECT] Dumping to memory");
+		//DUMP MEMORY
+		#(CLK_T*2);	
+		mem_dump = 1'b1;
+		#(TIMESTEP);
+		mem_dump = 1'b0;
+
+		
+
+		//Read adress 1 from SRAM
+		global_setup = 1;
+		#(CLK_T*5);	
+		tb_rst = 1'b0;
+		#(TIMESTEP);
+		tb_rst = 1'b1;
+		tb_address = 16'b1;
+		tb_writemode = 1'b0;
+		//strobe start
+		tb_start = 1'b1;
+		#(5*TIMESTEP);
+		tb_start = 1'b0;
+		#(CLK_T*10);
+		$display("[CHECK] Address %d = %x", tb_address, r_data);
+
+
+
+			
 	end
 	
 	always

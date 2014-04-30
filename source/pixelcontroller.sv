@@ -47,14 +47,15 @@ end
 /* GLOBAL COUNTS */
 
 reg [4:0] total_read;
-reg [4:0] total_write;
+reg [4:0] total_written;
 
 /* READ TIMER SIGNALS */
 
-reg Rtim_rst;
-reg Rtim_clear;
-reg Rtim_en;
-reg [3:0] Rindex;
+reg Rtim_rst, Wtim_rst;
+reg Rtim_clear, Wtim_clear;
+reg Rtim_en, Wtim_en;
+reg [3:0] Rindex, Windex;
+reg write_now;
 
 /* Temporary Regs */
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
@@ -69,11 +70,21 @@ flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .rollover_flag(read_now));
 
 /* WRITE TIMER SIGNALS goes below */
+flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
+      .clk(clk),
+      .n_rst(Wtim_rst),
+      .clear(Wtim_clear),
+      .count_enable(Wtim_en),
+      .rollover_val(3),//supposed to be 12 nano 
+      .count_out(Windex),
+      .rollover_flag(write_now));
 
 always_comb
 begin
 	Rtim_clear = 1'b0;
 	Rtim_rst = 1'b1;
+	Wtim_rst = 1'b1;
+	Wtim_clear = 1'b0;
 	if(state == IDLE) begin
 		next_state = IDLE;
 		if(enable == 1'b1) begin
@@ -82,12 +93,14 @@ begin
 			Rtim_clear = 1'b1;
 			next_state = READ_OP;
 			total_read = 0;
-			total_write = 0;
+			total_written = 0;
 		end
 	end else if(state == READ_OP) begin
 		next_state = READ_OP; //stay in READ_OP unless operation is finished
 		if(total_read == num_pix_read) begin
-			next_state = DONE;
+			next_state = WRITE_OP;
+			Wtim_en = 1'b1;
+			Wtim_clear = 1'b1;
 		end	
 
 		address = address_read_offset + total_read; //Output address wanted
@@ -103,11 +116,31 @@ begin
 			//move on
 			total_read = total_read + 1;
 		end
+	end else if(state == WRITE_OP) begin
+		next_state = WRITE_OP;
+		if(total_written == num_pix_write) begin
+			next_state = DONE;
+		end
+		
+		address = address_write_offset + total_written; //address wish to write to
+	  	write_enable = 1'b1;
+		read_enable = 1'b0;
+		
+		w_data = data_in[total_written ];
+		if(write_now) begin
+			total_written = total_written + 1;
+		end else begin
+			//no more write now
+			write_enable = 1'b0;
+		end
+
 	end else if(state == DONE) begin
 		next_state = DONE;
 		//Stay here and rot forever
 		read_enable = 1'b0;
+		write_enable = 1'b0;
 		Rtim_en = 1'b0;
+		Wtim_en = 1'b0;
 	end
 end
 endmodule
