@@ -7,21 +7,23 @@
 // Description: Obtains bunch of pixels or write bunch of pixels based on requested address offset and number of pixel wanted
 //	        and also greyscalify each pixel
 
-localparam W_ADDR_SIZE_BITS = 16;
-localparam W_DATA_SIZE_WORDS = 3;
-localparam W_WORD_SIZE_BYTES = 1;
-localparam DATA_BUS_FLOAT = 24'hz;
-localparam BIT_PER_PIXEL = 8;
-
-module pixelcontroller(
+module pixelcontroller
+#(
+	parameter W_ADDR_SIZE_BITS = 16,
+	parameter W_DATA_SIZE_WORDS = 3,
+	parameter W_WORD_SIZE_BYTES = 1,
+	parameter DATA_BUS_FLOAT = 24'hz,
+	parameter BIT_PER_PIXEL = 8
+)
+(
 	input wire clk,
 	input wire enable,
 	output reg [19:0][BIT_PER_PIXEL - 1:0] data_out,           //requested pixels from SRAM
 	input reg [19:0][BIT_PER_PIXEL - 1:0] data_in,		   //requested pixels to be written to SRAM
 	input wire [W_ADDR_SIZE_BITS - 1:0] address_write_offset,  //starting at what address do we start writing to
 	input wire [W_ADDR_SIZE_BITS - 1:0] address_read_offset, //starting at what address do we start reading from
-	input wire [4:0] num_pix_read,		   //how many pixels do we need to read
-	input wire [4:0] num_pix_write,		   //how many pixels do we need to write
+	input wire [24:0] num_pix_read,		   //how many pixels do we need to read
+	input wire [24:0] num_pix_write,		   //how many pixels do we need to write
 	input wire n_rst,
 	output wire read_now,        //flag that pixel data must be read now
 	//SRAM Controls
@@ -32,42 +34,49 @@ module pixelcontroller(
 	output reg write_enable
 );
 
-typedef enum {IDLE, WRITE_OP, READ_OP, DONE} state_type;
+typedef enum bit[1:0] {IDLE, WRITE_OP, READ_OP, DONE} state_type;
 state_type state, next_state;
+
+
+/* GLOBAL COUNTS */
+
+reg [4:0] total_read, next_total_read;
+reg [4:0] total_written;
+
+/* READ TIMER SIGNALS */
+reg [W_ADDR_SIZE_BITS - 1:0] next_address;
+reg Rtim_rst, Wtim_rst;
+reg Rtim_clear, Wtim_clear;
+reg Rtim_en, Wtim_en;
+reg [3:0] Rindex;
+reg [3:0] Windex;
+reg write_now;
+/* Temporary Regs */
+reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
+
+
 
 always @ (posedge clk, negedge n_rst)
 begin
 	if(1'b0 == n_rst) begin
-		state <= IDLE;
+		state = IDLE;
+		address = 24'hz;
+		total_read = 0;
 	end else begin
-		state <= next_state;
+		address = next_address;
+		state = next_state;
+		total_read = next_total_read;
 	end
 end
-
-/* GLOBAL COUNTS */
-
-reg [4:0] total_read;
-reg [4:0] total_written;
-
-/* READ TIMER SIGNALS */
-
-reg Rtim_rst, Wtim_rst;
-reg Rtim_clear, Wtim_clear;
-reg Rtim_en, Wtim_en;
-reg [3:0] Rindex, Windex;
-reg write_now;
-
-/* Temporary Regs */
-reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
-
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .clk(clk),
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(3),//supposed to be 12 nano 
+      .rollover_val(4'hF),//supposed to be 12 nano 
       .count_out(Rindex),
-      .rollover_flag(read_now));
+      .rollover_flag(read_now),
+      .back_to_zero(1'b0));
 
 /* WRITE TIMER SIGNALS goes below */
 flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
@@ -75,9 +84,10 @@ flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(3),//supposed to be 12 nano 
+      .rollover_val(4'hF),//supposed to be 12 nano 
       .count_out(Windex),
-      .rollover_flag(write_now));
+      .rollover_flag(write_now),
+      .back_to_zero(1'b0));
 
 always_comb
 begin
@@ -85,6 +95,7 @@ begin
 	Rtim_rst = 1'b1;
 	Wtim_rst = 1'b1;
 	Wtim_clear = 1'b0;
+	next_state = IDLE;
 	if(state == IDLE) begin
 		next_state = IDLE;
 		if(enable == 1'b1) begin
@@ -92,7 +103,14 @@ begin
 			Rtim_en = 1'b1;
 			Rtim_clear = 1'b1;
 			next_state = READ_OP;
-			total_read = 0;
+			total_written = 0;	
+			//write_now = 0;
+			read_enable =0;
+			write_enable =0;
+			next_address = 24'hz;
+			Wtim_rst = 0;
+			Wtim_rst = 1;
+			next_total_read = 0;
 			total_written = 0;
 		end
 	end else if(state == READ_OP) begin
@@ -103,18 +121,21 @@ begin
 			Wtim_clear = 1'b1;
 		end	
 
-		address = address_read_offset + total_read; //Output address wanted
-			
 		write_enable = 1'b0;
 		read_enable = 1'b1; //Enable read
 		
 		if(read_now) begin
+	
+		
+			next_address = address_read_offset + total_read; //Output address wanted
+			
+
 			//sum RBG
 			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
 			//store only grayscale equivalent by averaging-ish 
 			data_out[total_read] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8));
 			//move on
-			total_read = total_read + 1;
+			next_total_read = total_read + 1;
 		end
 	end else if(state == WRITE_OP) begin
 		next_state = WRITE_OP;
@@ -122,7 +143,7 @@ begin
 			next_state = DONE;
 		end
 		
-		address = address_write_offset + total_written; //address wish to write to
+		next_address = address_write_offset + total_written; //address wish to write to
 	  	write_enable = 1'b1;
 		read_enable = 1'b0;
 		
