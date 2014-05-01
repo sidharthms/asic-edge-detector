@@ -1,9 +1,9 @@
 // $Id: $
-// File name:   nms_controller.sv
+// File name:   hyst_controller.sv
 // Created:     5/1/2014
 // Author:      Akanksha Sharma, Sidharth Mudgal
 
-module nms_controller
+module _controller
 (
   input  wire clk,
   input  wire n_rst,
@@ -11,17 +11,17 @@ module nms_controller
   input  wire [31:0] anchor_x,
   input  wire [31:0] anchor_y,
 
-  input  wire [13:0][1:0] gradient_angle,
-  input  wire [13:0][7:0] gradient_mag,
-  output reg  [11:0][1:0] nms_grad_angle,
-  output reg  [11:0][7:0] nms_out,
-  output reg  nms_final               // Filter phase completed for all pixels.
+  input  wire [11:0][1:0] gradient_angle,
+  input  wire [11:0][7:0] hyst_in,
+  output reg  [11:0][7:0] hyst_out,
+  output reg  hyst_final               // Filter phase completed for all pixels.
 );
   
-  reg  [2:0][13:0][1:0] grad_angle_data;
-  reg  [2:0][13:0][7:0] grad_mag_data;
+  reg  [11:0][1:0] grad_angle_data;
+  reg  [11:0][7:0] nms_data;
+  reg  [9:0][7:0] hyst_previous;
 
-  typedef enum {IDLE, COPY, PROCESSING} state_type;
+  typedef enum {IDLE, COPY, PROCESSING, SAVE_RESULT} state_type;
   state_type state, next_state;
 
   wire index_clear;
@@ -29,30 +29,28 @@ module nms_controller
   wire [3:0] index;
 
   reg  [1:0] in_angle;
-  reg  [8:0][7:0] in_mag;
+  reg  [4:0][7:0] in_mag;
   wire [7:0] out_pixel;
 
   assign index_clear = next_state != PROCESSING;
   assign index_en = state == PROCESSING;
 
-  assign nms_grad_angle = grad_angle_data[1][12:1];
-
-  // NMS filter should be enabled only when all inputs are stable.
+  // Hyst filter should be enabled only when all inputs are stable.
 
   flex_counter #(.NUM_CNT_BITS(4)) index_counter(
       .clk(clk),
       .n_rst(n_rst),
       .clear(index_clear),
       .count_enable(index_en),
-      .rollover_val(4'd11),
+      .rollover_val(4'd9),
       .count_out(index));
 
-  nms filter(
+  hyst filter(
       .in_angle(in_angle),
       .in_mag(in_mag),
       .out_pixel(out_pixel));
 
-  assign nms_final = index == 11 || state == IDLE;
+  assign hyst_final = state == COPY_RESULT || state == IDLE;
 
   always @ (posedge clk, negedge n_rst)
   begin
@@ -65,15 +63,16 @@ module nms_controller
       // Copy in fresh data at the beginning.
       if (next_state == COPY)
       begin
-        grad_angle_data[0] <= gradient_angle;
-        grad_mag_data[0] <= gradient_mag;
-
-        grad_angle_data[2:1] <= grad_angle_data[1:0];
-        grad_mag_data[2:1] <= grad_mag_data[1:0];
+        grad_angle_data <= gradient_angle;
+        nms_data[0] <= hyst_in;
+        nms_data[1] <= nms_data[0];
       end
 
+      // Copy result for next stage.
+      if (state == COPY_RESULT)
+        hyst_previous <= hyst_out;
       if (index_en)
-        nms_out[index] <= out_pixel;
+        hyst_out[index] <= out_pixel;
     end
   end
 
@@ -91,25 +90,37 @@ module nms_controller
         next_state = PROCESSING;
       PROCESSING:
       begin
-        if (nms_final)
-        begin
-          if (anchor_moving)
-            next_state = COPY;
-          else
-            next_state = IDLE;
-        end
+        if (index == 9)
+          next_state = COPY_RESULT;
         else
           next_state = PROCESSING;
+      end
+      COPY_RESULT:
+      begin
+        if (anchor_moving)
+          next_state = COPY;
+        else
+          next_state = IDLE;
       end
     endcase
   end
 
   always @ (*)
   begin
-    in_angle = grad_angle_data[1][index+1];
-    for (int i = 0; i < 3; i++)
+    if (index == 0)
     begin
-      in_mag[i+:3] = grad_mag_data[2-i][index+:3];
+      in_mag[0] = nms_data[0][0];
+      in_mag[3] = nms_data[1][0];
+    else
+      in_mag[0] = hyst_out[index-1];
+      im_mag[3] = hyst_previous[index-1];
     end
+
+    in_mag[2] = hyst_previous[index];
+
+    if (index == 9)
+      in_mag[1] = nms_data[1][11];
+    else
+      in_mag[1] = hyst_previous[index+1];
   end
 endmodule

@@ -2,9 +2,6 @@
 // File name:   controller.sv
 // Created:     3/17/2014
 // Author:      Sidharth Mudgal Sunil Kumar
-// Lab Section: 337-03
-// Version:     1.0  Initial Design Entry
-// Description: Main Controller
 
 module controller
 (

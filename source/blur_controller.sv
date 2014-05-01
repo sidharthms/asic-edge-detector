@@ -2,9 +2,6 @@
 // File name:   blur_controller.sv
 // Created:     4/22/2014
 // Author:      Sidharth Mudgal Sunil Kumar
-// Lab Section: 337-03
-// Version:     1.0  Initial Design Entry
-// Description: Filter Controller
 
 module blur_controller
 (

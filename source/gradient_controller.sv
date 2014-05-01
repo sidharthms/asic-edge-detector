@@ -1,9 +1,7 @@
 // $Id: $
 // File name:   gradient_controller.sv
 // Created:     4/22/2014
-// Author:      Sidharth Mudgal Sunil Kumar
-// Lab Section: 337-03
-// Version:     1.0  Initial Design Entry
+// Author:      Sidharth Mudgal Sunil Kumar, Akanksha Sharma
 
 module gradient_controller
 (
@@ -16,7 +14,7 @@ module gradient_controller
   input  wire [15:0][7:0] gradient_in,
   output reg signed [13:0][1:0] gradient_angle,
   output reg signed [13:0][7:0] gradient_mag,
-  output reg gradient_final             // Filter phase completed for all pixels.
+  output reg gradient_final           // Filter phase completed for all pixels.
 );
   
   wire anchor_on_init_pos;
