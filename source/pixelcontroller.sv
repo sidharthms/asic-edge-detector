@@ -126,7 +126,7 @@ begin
 		
 		//if(read_now)		
 		//store only grayscale equivalent by averaging-ish 
-		if(postread_now) begin //Sample our point a bit later
+		if(~read_now) begin //Sample our point a bit later
 			data_out[ctfill] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
 		end
 		if((address - address_read_offset) == (num_pix_read)) begin
