@@ -19,7 +19,7 @@ module blur_controller
   output reg blur_final             // Filter phase completed for all pixels.
 );
   
-  wire anchor_on_first_row;
+  wire anchor_on_init_pos;
 
   reg  [4:0][15:0][7:0] blur_data;
   reg  [19:0][7:0] blur_data_new;
@@ -48,7 +48,7 @@ module blur_controller
   wire unit_final_x;
   wire unit_final_y;
 
-  assign anchor_on_first_row = anchor_x == 0;
+  assign anchor_on_init_pos = anchor_x == 0;
   assign index_clear = next_state != PROCESSING;
 
   assign index_x1 = 2*index;
@@ -99,7 +99,7 @@ module blur_controller
       .in_pixels(in_pixels_y2),
       .out_pixel(out_pixel_y2));
 
-  assign blur_final = index == 8 && unit_final_y;
+  assign blur_final = (index == 8 && unit_final_y) || state == IDLE;
 
   always @ (posedge clk, negedge n_rst)
   begin
@@ -118,7 +118,7 @@ module blur_controller
 
       if (unit_en_x)
       begin
-        if (anchor_on_first_row)
+        if (anchor_on_init_pos)
         begin
           for (int i = 0; i < 5; i=i+1)
           begin

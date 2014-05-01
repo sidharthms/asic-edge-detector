@@ -30,7 +30,7 @@ reg tb_ahb_hgrant; //bus grant
 reg tb_ahb_hlock; //locked transfer request
 reg tb_ahb_hbusreq; //bus request  
 reg tb_ahb_hready; //slave is ready
-reg tb_ahb_hresp; //transfer response
+reg [1:0] tb_ahb_hresp; //transfer response
 reg [BUSWIDTH-1:0] tb_width;
 reg [BUSWIDTH-1:0] tb_height;
 reg [BUSWIDTH-1:0] tb_readStartAddress;
@@ -74,7 +74,7 @@ begin
     tb_rst=0;
     #(TIMESTEP*3);
     
-    //test case one, sending the correct signals to finish all the state
+    //test case number one, sending the correct signals to finish all the state
     //feed to state IDLE 
     tb_rst=1'b1;
     #(CLK_T*2);
@@ -84,7 +84,7 @@ begin
 
     //feed to read width state
     #(CLK_T); 
-    tb_ahb_hrdata=32'h151; 
+    tb_ahb_hrdata=32'h20000151;    //send the width with most significant 3 bits to be 001 
 
     //feed to read add2
     #(CLK_T); 
@@ -92,7 +92,7 @@ begin
 
     //feed to read height state
     #(CLK_T); 
-    tb_ahb_hrdata=32'h151;
+    tb_ahb_hrdata=32'h40000151;
 
     //feed to read add3
     #(CLK_T); 
@@ -100,7 +100,7 @@ begin
 
     //feed to read readstartaddress
     #(CLK_T); 
-    tb_ahb_hrdata=32'h1F4;
+    tb_ahb_hrdata=32'h600001F4;   // 011
 
 
     //feed to read add4
@@ -109,7 +109,7 @@ begin
 
     //feed to read writestartaddress
     #(CLK_T); 
-    tb_ahb_hrdata=32'h157C;
+    tb_ahb_hrdata=32'h8000157C;  //100
 
 
    //feed to read add5
@@ -118,10 +118,11 @@ begin
 
     //feed to read filter 
     #(CLK_T); 
-    tb_ahb_hrdata=1'b1;
+    tb_ahb_hrdata=32'hA0000001; 
 
     //feed to KICKSTART state
     #(CLK_T); 
+    #(CLK_T/2); 
     tb_ahb_hrdata=1'b1;
 
 
