@@ -83,7 +83,6 @@ module tb_pixelcontroller
 	reg [24:0] tbp_num_pix_read, tbp_num_pix_write;
 	reg tbp_n_rst;
 	reg tbp_read_now;
-	reg tbp_EOO; 
 		
 
 	off_chip_sram_wrapper #(W_ADDR_SIZE_BITS,3,1,10,10) SRAM(.init_file_number(init_file_number), 
@@ -109,7 +108,6 @@ module tb_pixelcontroller
 	.num_pix_write(tbp_num_pix_write),
 	.n_rst(tbp_n_rst),
 	.read_now(tbp_read_now),
-	.end_of_operations(tbp_EOO),
 	.address(paddress),
 	.w_data(pw_data),
 	.r_data(r_data),
@@ -122,16 +120,9 @@ module tb_pixelcontroller
    //Test bench process
    initial
     begin
+		out_file = $fopen("aoutputs.mem");
 		global_setup = 1;
-		//initialize Pixcon
-		tbp_enable = 1'b0;
-		tbp_data_in = 0;
-		tbp_address_write_offset = 0;
-		tbp_address_read_offset = 0;
-		tbp_num_pix_read = 0;
-		tbp_num_pix_write = 0;
-		tbp_n_rst = 1'b0;
-
+				
 		//initializes
 		mem_clr = 1'b0;
 		swrite_enable = 1'b0;
@@ -142,10 +133,10 @@ module tb_pixelcontroller
 		mem_init = 1'b0;
 		mem_dump = 1'b0;
 		
-		#(CLK_T*5);	
+		#(TIMESTEP*5);	
 		//Initializes SRAM
 		mem_clr = 1'b1;
-		#(CLK_T);
+		#(TIMESTEP);
 		mem_clr = 1'b0;
 		init_file_number = 0;
 		dump_file_number = 0;
@@ -154,33 +145,58 @@ module tb_pixelcontroller
 		
 		//Load Init File into Memory		
 		mem_init = 1'b1;
-		#(CLK_T);
+		#(TIMESTEP);
 		mem_init = 1'b0;
+	  	current_addr = 0;		
 		 
 		//Toggle Setup Mode Off
 		global_setup = 0;
 		#(CLK_T);
-		tbp_enable = 1'b1;
-		tbp_n_rst = 1'b1;
-		//Request to read 10 pixels, starting at 0th pixel
-	        tbp_data_in[0] = 8'hFA;
-		tbp_data_in[1] = 8'hAB;	
-		tbp_data_in[10]= 8'hFE;
-		tbp_data_in[11] = 8'hEF;
-		tbp_num_pix_write <= 2;
-		tbp_num_pix_read <= 10;
-		tbp_address_write_offset <= 16'h0;
-		tbp_address_read_offset <= 16'h0;
 		
-		#(5000);
+	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n",0,128,1,128);	
 	
+		for(J=0;J<=820;J=J+1) begin
+			$display("Testing Pixel Controller");
+			//Test Parameters for Pixel Controller
+			tbp_n_rst <= 1'b0;
+			#(CLK_T);
+			tbp_n_rst <= 1'b1;
+			tbp_num_pix_write <= 00;	
+			tbp_num_pix_read <= 20;
+			tbp_enable <= 1'b1;
+			tbp_address_write_offset <= 16'h00;
+			tbp_address_read_offset <= J*20;
+			
+			//tbp_data_in[0] = 8'hBB;
+			//tbp_data_in[1] = 8'hBF;
+			
+			#(12*CLK_T);
+			$display("iteration %d",J);			
+			//Check Output in Data Out Registers
+			for(i = 0; i < tbp_num_pix_read; i = i+1) begin		
+			    //TODO: negedge seem to not be safe enough
+			    @(posedge tbp_read_now);
+			   
+			   $display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
+			   $display("------------ accessible via reg as <%d>",  tbp_data_out[i]);			
+			   $display("%x",tbp_data_out);			 
+			   $fwrite(out_file,"%x:%x;\n",tbp_address_read_offset + i + 2,tbp_data_out[i] & 24'hFF);
+			end
+		end
+
+		#(CLK_T*2);
+
 		//Double Check Memory	
-		$display("[DIRECT] Dumping SRAM to memory");
+		$display("RECONSTRUCTING IMAGE!");
+		$scriptsim("source/reconstruct.sh");
 		//DUMP MEMORY
-		#(CLK_T*2);	
+/*		#(CLK_T*2);	
 		mem_dump = 1'b1;
 		#(TIMESTEP);
 		mem_dump = 1'b0;
+*/
+
+		$fclose(out_file);
 
 			
 	end
