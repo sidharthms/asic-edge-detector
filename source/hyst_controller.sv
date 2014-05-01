@@ -3,13 +3,11 @@
 // Created:     5/1/2014
 // Author:      Akanksha Sharma, Sidharth Mudgal
 
-module _controller
+module hyst_controller
 (
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x,
-  input  wire [31:0] anchor_y,
 
   input  wire [11:0][1:0] gradient_angle,
   input  wire [11:0][7:0] hyst_in,
@@ -18,10 +16,10 @@ module _controller
 );
   
   reg  [11:0][1:0] grad_angle_data;
-  reg  [11:0][7:0] nms_data;
+  reg  [1:0][11:0][7:0] nms_data;
   reg  [9:0][7:0] hyst_previous;
 
-  typedef enum {IDLE, COPY, PROCESSING, SAVE_RESULT} state_type;
+  typedef enum {IDLE, COPY, PROCESSING, COPY_RESULT} state_type;
   state_type state, next_state;
 
   wire index_clear;
@@ -61,7 +59,7 @@ module _controller
       state <= next_state;
 
       // Copy in fresh data at the beginning.
-      if (next_state == COPY)
+      if (state == COPY)
       begin
         grad_angle_data <= gradient_angle;
         nms_data[0] <= hyst_in;
@@ -107,13 +105,18 @@ module _controller
 
   always @ (*)
   begin
+    in_angle = grad_angle_data[index];
+    in_mag[4] = nms_data[0][index+1];
+
     if (index == 0)
     begin
       in_mag[0] = nms_data[0][0];
       in_mag[3] = nms_data[1][0];
+    end
     else
+    begin
       in_mag[0] = hyst_out[index-1];
-      im_mag[3] = hyst_previous[index-1];
+      in_mag[3] = hyst_previous[index-1];
     end
 
     in_mag[2] = hyst_previous[index];

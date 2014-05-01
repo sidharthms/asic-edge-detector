@@ -1,7 +1,7 @@
 // $Id: $
 // File name:   tb_gradient_controller.sv
 // Created:     4/26/2014
-// Author:      Akanksha Sharma
+// Author:      Sidharth Mudgal, Akanksha Sharma
 
 `timescale 1ns / 10ps
 
@@ -17,40 +17,43 @@ module tb_gradient_controller();
   reg tb_n_rst;
   reg tb_anchor_moving;
   reg [31:0] tb_anchor_x;
-  reg [31:0] tb_anchor_y;
   reg [15:0][7:0] tb_gradient_in;
-  reg [13:0][7:0] tb_gradient_out;
-  reg [13:0][7:0] tb_gradient_out;
+  reg [13:0][10:0] tb_gradient_x;
+  reg [13:0][10:0] tb_gradient_y;
+  reg [13:0][1:0] tb_gradient_angle;
+  reg [13:0][7:0] tb_gradient_mag;
   reg tb_gradient_final;
   
   reg [31:0] test_cases_anchor_x [NUM_TEST_CASES];
-  reg [31:0] test_cases_anchor_y [NUM_TEST_CASES];
   reg [15:0][7:0] test_cases_gradient_in  [NUM_TEST_CASES+2];
-  reg [13:0][7:0] test_cases_gradient_x [NUM_TEST_CASES];
-  reg [13:0][7:0] test_cases_gradient_y [NUM_TEST_CASES];
+  reg [13:0][10:0] test_cases_gradient_y  [NUM_TEST_CASES];
+  reg [13:0][10:0] test_cases_gradient_x  [NUM_TEST_CASES];
+  reg unsigned [13:0][7:0] test_cases_gradient_mag [NUM_TEST_CASES];
  
   int expected;
   int result;
-  int unsigned sum;
+  int signed y_sum;
+  int signed x_sum;
+  int unsigned x;
+  int unsigned y;
   bit found_error;
 
   // Test vector population
   initial
   begin
-    static byte unsigned x_mask [3][3]= '{
+    static byte signed x_mask [3][3]= '{
         '{ -1, 0, 1 },
         '{ -2, 0, 2 },
         '{ -1, 0, 1 }};
       
-    static byte unsigned y_mask [3][3]= '{
-        '{  1,  2, 1 },
-        '{  0,  0, 0 },
-        '{ -1, -2, 1 }};
+    static byte signed y_mask [3][3]= '{
+        '{  1,  2,  1 },
+        '{  0,  0,  0 },
+        '{ -1, -2, -1 }};
       
     for (int i = 0; i < NUM_TEST_CASES; i=i+1)
     begin
       test_cases_anchor_x[i] = i+1;
-      test_cases_anchor_y[i] = 0;
       for (int j = 0; j < 16; j=j+1)
         test_cases_gradient_in[i+2][j] = $urandom_range(255);
     end
@@ -59,13 +62,22 @@ module tb_gradient_controller();
 
     // Find 2D Gradient
     for (int r = 1; r < NUM_TEST_CASES+2; r++)
-      for (int c = 1; c < 14; c++)
+      for (int c = 1; c < 15; c++)
       begin
-        sum = 0;
+        test_cases_gradient_mag[r-1][c-1] = '0;
+        x_sum = 0;
+        y_sum = 0;
         for (int mr = 0; mr < 3; mr++)
           for (int mc = 0; mc < 3; mc++)
-            sum = sum + mask[mr][mc] * test_cases_gradient_in[r+mr-1][c+mc-1];
-        test_cases_gradient_x[r-1][c-1] = sum;
+          begin
+            x_sum = x_sum + x_mask[mr][mc] * $signed({1'b0,test_cases_gradient_in[r+mr-1][c+mc-1]});
+            y_sum = y_sum + y_mask[mr][mc] * $signed({1'b0,test_cases_gradient_in[r+mr-1][c+mc-1]});
+          end
+        test_cases_gradient_x[r-1][c-1] = x_sum;
+        test_cases_gradient_y[r-1][c-1] = y_sum;
+        x = x_sum < 0 ? x_sum * (-1) : x_sum;
+        y = y_sum < 0 ? y_sum * (-1) : y_sum;
+        test_cases_gradient_mag[r-1][c-1] = (x + y) >> 3;
       end
   end
 
@@ -74,9 +86,11 @@ module tb_gradient_controller();
     tb_n_rst,
     tb_anchor_moving,
     tb_anchor_x,
-    tb_anchor_y,
     tb_gradient_in,
-    tb_gradient_out,
+    tb_gradient_angle,
+    tb_gradient_mag,
+    tb_gradient_x,
+    tb_gradient_y,
     tb_gradient_final);
   
   always
@@ -87,10 +101,9 @@ module tb_gradient_controller();
     #(CLK_PERIOD / 2);
   end
 
-  task perform_blur;
+  task perform_gradient;
     input [31:0] anchor_x;
-    input [31:0] anchor_y;
-    input [19:0][7:0] gradient_in;
+    input [15:0][7:0] gradient_in;
 
     bit done;
   begin
@@ -98,7 +111,6 @@ module tb_gradient_controller();
     @(negedge tb_clk);
     tb_anchor_moving = 1;
     tb_anchor_x = anchor_x;
-    tb_anchor_y = anchor_y;
     tb_gradient_in = gradient_in;
 
     @(negedge tb_clk);
@@ -145,19 +157,38 @@ module tb_gradient_controller();
     $info("Starting");
     for(tb_test_case = 0; tb_test_case < NUM_TEST_CASES; tb_test_case++)
     begin
-      perform_blur(test_cases_anchor_x[tb_test_case],
-          test_cases_anchor_y[tb_test_case],
-          test_cases_gradient_in[tb_test_case + 4]);
+      perform_gradient(test_cases_anchor_x[tb_test_case],
+          test_cases_gradient_in[tb_test_case + 2]);
 
-      for (int c = 0; c < 16; c++)
+      for (int c = 0; c < 14; c++)
       begin
-        expected = test_cases_gradient_out[tb_test_case][c];
-        result = tb_gradient_out[c];
-        assert(result >= expected - 9 && result <= expected)
+        expected = test_cases_gradient_mag[tb_test_case][c];
+        result = tb_gradient_mag[c];
+        assert(result >= expected - 10 && result <= expected + 10)
         else
         begin
           found_error = 1;
-          $error("Test case %0d: ---INCORRECT--- column %0d, exp=%0d, res=%0d",
+          $error("Test case %0d: MAGNITUDE---INCORRECT--- column %0d, exp=%0b, res=%0b, res_o=%0b",
+              tb_test_case, c, expected, result, test_cases_gradient_mag[tb_test_case][c]);
+        end
+
+        expected = test_cases_gradient_x[tb_test_case][c];
+        result = tb_gradient_x[c];
+        assert(result >= expected - 10 && result <= expected + 10)
+        else
+        begin
+          found_error = 1;
+          $error("Test case %0d: XXXXXX---INCORRECT--- column %0d, exp=%0d, res=%0d",
+              tb_test_case, c, expected, result);
+        end
+
+        expected = test_cases_gradient_y[tb_test_case][c];
+        result = tb_gradient_y[c];
+        assert(result >= expected - 10 && result <= expected + 10)
+        else
+        begin
+          found_error = 1;
+          $error("Test case %0d: YYYYY---INCORRECT--- column %0d, exp=%0d, res=%0d",
               tb_test_case, c, expected, result);
         end
       end

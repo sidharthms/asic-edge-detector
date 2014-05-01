@@ -11,10 +11,17 @@ include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 # File Related Variables
 ##############################################################################
 
-#$(if [[ MAKECMDGOALS == *_tblurc_* ]]; then 
-TOP_LEVEL_FILE := blur_controller.sv
-COMPONENT_FILES := flex_counter.sv blur.sv adder_3.sv
-#fi)
+#TOP_LEVEL_FILE := blur_controller.sv
+#COMPONENT_FILES := flex_counter.sv blur.sv adder_3.sv
+
+#TOP_LEVEL_FILE := gradient_controller.sv
+#COMPONENT_FILES := flex_counter.sv gradient_mag_angle.sv gradient_sub.sv gradient_weight.sv
+
+#TOP_LEVEL_FILE := nms_controller.sv
+#COMPONENT_FILES := flex_counter.sv nms.sv
+
+TOP_LEVEL_FILE := hyst_controller.sv
+COMPONENT_FILES := flex_counter.sv hyst.sv
 
 # List internal component/block files here (separate the filenames with spaces)
 # (do not include the source folder in the name)

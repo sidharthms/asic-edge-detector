@@ -9,7 +9,6 @@ module blur_controller
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
   input  wire [31:0] anchor_x,
-  input  wire [31:0] anchor_y,
 
   input  wire [19:0][7:0] blur_in,
   output reg  [15:0][7:0] blur_out,
@@ -107,7 +106,7 @@ module blur_controller
       state <= next_state;
 
       // Copy in fresh data at the beginning.
-      if (next_state == COPY)
+      if (state == COPY)
       begin
         blur_data_new <= blur_in;
         blur_data[4:1] <= blur_data[3:0];
