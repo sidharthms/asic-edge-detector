@@ -88,6 +88,7 @@ begin
     //feed to read width state
     #(CLK_T); 
     tb_ahb_hrdata=32'h20000151;    //send the width with most significant 3 bits to be 001 
+    #(CLK_T/2); 
 
     //feed to read add2
     #(CLK_T); 
@@ -99,7 +100,7 @@ begin
 
     //feed to read add3
     #(CLK_T); 
-    #(CLK_T); 
+    #(CLK_T/2); 
     tb_ahb_haddr=32'hD09;
 
     //feed to read readstartaddress
@@ -123,6 +124,8 @@ begin
     //feed to read filter 
     #(CLK_T); 
     tb_ahb_hrdata=32'hA0000001; 
+    #(CLK_T/2); 
+
 
     //feed to KICKSTART state
     

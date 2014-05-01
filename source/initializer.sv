@@ -76,13 +76,13 @@ module initializer
    end 
 
    always @ (ahb_hclk, n_rst, ahb_haddr, ahb_hrdata) begin: next_state
-      //ahb_hready='0;
+      ahb_hready='1;
       //ahb_hresp='0;
       //nextstate=state;
       //final_enable='0;
       case(state)
 	IDLE: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
 	   ahb_hresp='0;
            filterType='0;
            final_enable='0;
@@ -92,7 +92,7 @@ module initializer
 	end
 
 	READ_ADD1: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
            $display("ahb_haddr is:%h",ahb_haddr);
            $display("slaveadd is:%h",SLAVEADDRESS);
 
@@ -106,20 +106,20 @@ module initializer
 	
 
 	READ_WIDTH: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
            if (~ahb_hrdata[31] && ahb_hrdata[29] && ~ahb_hrdata[30])begin   // 01 of the MSB for width
                width={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD2;
                ahb_hresp='0;
            end else begin
-               ahb_hresp='10;
+               ahb_hresp=2'b10;
                nextstate=IDLE;
            end 
 	end
 
 
 	READ_ADD2: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
 
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_HEIGHT;
@@ -129,7 +129,7 @@ module initializer
 	end
 
         READ_HEIGHT: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
 
            if (~ahb_hrdata[31] && ~ahb_hrdata[29] && ahb_hrdata[30]) begin // 10 of the MSB for height 
                height={3'b000,ahb_hrdata[28:0]};
@@ -143,7 +143,7 @@ module initializer
 
 
         READ_ADD3: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
 
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_RSTADD;
@@ -154,7 +154,7 @@ module initializer
 
 
         READ_RSTADD: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
            if (~ahb_hrdata[31] && ahb_hrdata[29] && ahb_hrdata[30]) begin // 11 of the MSB for read readstartaddress 
                readStartAddress={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD4;
@@ -167,7 +167,7 @@ module initializer
 
 
         READ_ADD4: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
 
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_WSTADD;
@@ -177,7 +177,7 @@ module initializer
 	end
 
         READ_WSTADD: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
            if (ahb_hrdata[31] && ~ahb_hrdata[29] && ~ahb_hrdata[30]) begin // 100 of the MSB for read readwriteaddress 
                writeStartAddress ={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD5;
@@ -190,7 +190,7 @@ module initializer
 
 
         READ_ADD5: begin
-	   ahb_hready='0;
+	   ahb_hready='1;
  
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_FILTER;
@@ -201,7 +201,7 @@ module initializer
 
 
 	READ_FILTER: begin
-	   ahb_hready=0;
+	   ahb_hready=1;
            if ((ahb_hrdata[31] && ahb_hrdata[29] && ~ahb_hrdata[30]))
            begin     // 101 of the MSB for read filter 
                filterType='1;
@@ -217,7 +217,7 @@ module initializer
 	end
 
 	KICKSTART: begin
-	   ahb_hready=1;
+	   ahb_hready=0;
            final_enable = '1;
            $display("final enable is:%d",final_enable);
            nextstate = KICKSTART;
