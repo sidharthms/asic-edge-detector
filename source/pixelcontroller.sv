@@ -56,6 +56,7 @@ reg write_now;
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
 //reg end_of_operations;
 reg addr_clearW; //Clear address for write op
+reg [5:0] ctfill;
 
 always @ (posedge clk, negedge n_rst)
 begin
@@ -64,12 +65,14 @@ begin
 		address = address_read_offset;
 		total_read = 0;
 		Rtim_en = 1'b1;	
+		ctfill = 0;
 	end else begin
 		state = next_state;
 		if(addr_clearW) begin
 			address = address_write_offset;
 		end else if(read_now) begin
 			address = address + 1;
+			ctfill = ctfill + 1;
 		end
 	end
 end
@@ -78,7 +81,7 @@ flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(4'h5),//supposed to be 5+2 nano 
+      .rollover_val(4'hA),//supposed to be 5+2 nano 
       .count_out(Rindex),
       .rollover_flag(read_now));
 
@@ -88,7 +91,7 @@ flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(4'h5),//supposed to be 7 nano 
+      .rollover_val(4'hA),//supposed to be 7 nano 
       .count_out(Windex),
       .rollover_flag(write_now));
 
@@ -111,13 +114,11 @@ begin
 		write_enable = 1'b0;
 		read_enable = 1'b1;
 		//Wtim_rst = 1'b1;
-
-		if(read_now)	
-			//sum RBG
-			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
-			//store only grayscale equivalent by averaging-ish 
-			data_out[address - address_read_offset] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
-	
+		temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
+		
+		//if(read_now)		
+		//store only grayscale equivalent by averaging-ish 
+		data_out[ctfill] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
 		if((address - address_read_offset) == (num_pix_read)) begin
 			//if we have had enough of reading operations
 			next_state = WRITE_OP; //go to WRITE OP
@@ -136,7 +137,7 @@ begin
 			end_of_operations = 1'b1;
 		end
 	end else if(state == DONE) begin
-		next_state = DONE;
+		next_state = IDLE;
 	end
 
 end
