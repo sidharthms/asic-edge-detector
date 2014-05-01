@@ -70,6 +70,9 @@ initializer INIT(.n_rst(tb_rst),
 
 initial
 begin
+    tb_ahb_haddr=32'h0;
+    tb_ahb_hrdata=32'h0;
+    tb_ahb_haddr=32'h0;
     //reset the design 
     tb_rst=0;
     #(TIMESTEP*3);
@@ -77,7 +80,7 @@ begin
     //test case number one, sending the correct signals to finish all the state
     //feed to state IDLE 
     tb_rst=1'b1;
-    #(CLK_T*2);
+    #(CLK_T);
 
     //feed to readadd1
     tb_ahb_haddr=32'hD09;
@@ -95,6 +98,7 @@ begin
     tb_ahb_hrdata=32'h40000151;
 
     //feed to read add3
+    #(CLK_T); 
     #(CLK_T); 
     tb_ahb_haddr=32'hD09;
 
@@ -121,8 +125,8 @@ begin
     tb_ahb_hrdata=32'hA0000001; 
 
     //feed to KICKSTART state
+    
     #(CLK_T); 
-    #(CLK_T/2); 
     tb_ahb_hrdata=1'b1;
 
 

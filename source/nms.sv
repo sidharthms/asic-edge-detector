@@ -1,7 +1,7 @@
 // $Id: $
 // File name:   nms.sv
 // Created:     5/1/2014
-// Author:      Akansha Sharma
+// Author:      Sidharth Mudgal, Akansha Sharma
 
 module nms
 #(
