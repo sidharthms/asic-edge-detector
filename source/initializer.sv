@@ -46,7 +46,7 @@ module initializer
    
    //READ_ADDR1: state that verify the address sent from the bus to match slave address, if true, go read width
    //READ_ADDR2: state that verify the address sent from the bus to match slave address, if true, go read height
-   typedef enum {IDLE, READ_HEIGHT, READ_WIDTH, READ_ADD1, READ_ADD2, READ_ADD3, READ_ADD4,READ_ADD5,READ_RSTADD,READ_WSTADD,READ_FILTER, KICKSTART} state_type;
+   typedef enum bit[4:0] {IDLE, READ_ADD1,READ_WIDTH,READ_ADD2,READ_HEIGHT,READ_ADD3,READ_RSTADD, READ_ADD4,READ_WSTADD,READ_ADD5,READ_FILTER,KICKSTART} state_type;
    state_type state, nextstate;
          
   // reg 		flex_clear, flex_en;   
@@ -61,9 +61,9 @@ module initializer
       .rollover_val(15),
       .count_out(flex_out),
       .rollover_flag(flex_done));
- */ 
+ */
 
-   always_ff @ (posedge ahb_hclk, negedge n_rst) 
+   always @ (posedge ahb_hclk, negedge n_rst) 
    begin
       //$display("n_rst out is: %d",n_rst);
       if(~n_rst) begin
@@ -73,22 +73,19 @@ module initializer
          state = nextstate;
          $display("n_rst here is : %d",n_rst);
       end
-   end
+   end 
 
-   always @ (*) begin: next_state
-      ahb_hready='0;
-      ahb_hresp='0;
-      nextstate=IDLE;
-      final_enable='0;
+   always @ (ahb_hclk, n_rst, ahb_haddr, ahb_hrdata) begin: next_state
+      //ahb_hready='0;
+      //ahb_hresp='0;
+      //nextstate=state;
+      //final_enable='0;
       case(state)
 	IDLE: begin
 	   ahb_hready='0;
 	   ahb_hresp='0;
-	   width='0;
-	   height='0;
-	   readStartAddress='0;
-	   writeStartAddress='0;
-	   filterType='0;
+           filterType='0;
+           final_enable='0;
 	   nextstate=READ_ADD1;
            $display("ahb_haddr in IDLE is:%h",ahb_haddr);
 	   
@@ -96,31 +93,27 @@ module initializer
 
 	READ_ADD1: begin
 	   ahb_hready='0;
-	   ahb_hresp='0;
-	   width='0;
-	   height='0;
            $display("ahb_haddr is:%h",ahb_haddr);
            $display("slaveadd is:%h",SLAVEADDRESS);
-	   
+
            if (ahb_haddr == SLAVEADDRESS) begin
 	      nextstate = READ_WIDTH;
-	   end else begin
-	      nextstate = IDLE;
 	   end
-	   
+           else begin
+               nextstate = IDLE;
+           end
 	end // case: READ_ADD1
 	
 
 	READ_WIDTH: begin
 	   ahb_hready='0;
-           if (ahb_hrdata[31:29]==3'b001) begin     // 01 of the MSB for width
+           if (~ahb_hrdata[31] && ahb_hrdata[29] && ~ahb_hrdata[30])begin   // 01 of the MSB for width
                width={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD2;
                ahb_hresp='0;
            end else begin
-               width = '0;
+               ahb_hresp='10;
                nextstate=IDLE;
-               ahb_hresp =2'b10;
            end 
 	end
 
@@ -137,12 +130,12 @@ module initializer
 
         READ_HEIGHT: begin
 	   ahb_hready='0;
-           if (ahb_hrdata[31:29]==3'b010) begin     // 10 of the MSB for height 
+
+           if (~ahb_hrdata[31] && ~ahb_hrdata[29] && ahb_hrdata[30]) begin // 10 of the MSB for height 
                height={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD3;
                ahb_hresp='0;
            end else begin
-               height= '0;
                nextstate=IDLE;
                ahb_hresp =2'b10;
            end
@@ -162,12 +155,11 @@ module initializer
 
         READ_RSTADD: begin
 	   ahb_hready='0;
-           if (ahb_hrdata[31:29]==3'b011) begin     // 11 of the MSB for read readstartaddress 
+           if (~ahb_hrdata[31] && ahb_hrdata[29] && ahb_hrdata[30]) begin // 11 of the MSB for read readstartaddress 
                readStartAddress={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD4;
                ahb_hresp='0;
            end else begin
-               readStartAddress= '0;
                nextstate=IDLE;
                ahb_hresp =2'b10;
            end
@@ -186,12 +178,11 @@ module initializer
 
         READ_WSTADD: begin
 	   ahb_hready='0;
-           if (ahb_hrdata[31:29]==3'b100) begin     // 100 of the MSB for read readwriteaddress 
+           if (ahb_hrdata[31] && ~ahb_hrdata[29] && ~ahb_hrdata[30]) begin // 100 of the MSB for read readwriteaddress 
                writeStartAddress ={3'b000,ahb_hrdata[28:0]};
                nextstate=READ_ADD5;
                ahb_hresp='0;
            end else begin
-               writeStartAddress = '0;
                nextstate=IDLE;
                ahb_hresp =2'b10;
            end
@@ -210,7 +201,7 @@ module initializer
 
 
 	READ_FILTER: begin
-	   ahb_hready='0;
+	   ahb_hready=0;
            if ((ahb_hrdata[31] && ahb_hrdata[29] && ~ahb_hrdata[30]))
            begin     // 101 of the MSB for read filter 
                filterType='1;
@@ -220,7 +211,6 @@ module initializer
            else
            begin
                $display("im also here");
-               filterType= '0;
                nextstate= IDLE;
                ahb_hresp =2'b10;
            end
