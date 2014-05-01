@@ -2,7 +2,7 @@
 import sys
 import os
 import Image
-sys.path.append( "/home/ecegrid/a/mg82/BitVector-3.3.2" )
+sys.path.append( "/home/ecegrid/a/mg81/asic-edge-detector/BitVector/" )
 from BitVector import BitVector
 
 def convertToString(im_filename,output_filename):
@@ -15,8 +15,10 @@ def convertToString(im_filename,output_filename):
     # list stores pixel value in hex form including the all three bytes in each pixel
     pixel_list_hex=[]
 
+    print str(im.size[0]) + "x" + str(im.size[1])
     for h in range(im.size[1]):
         for w in range(im.size[0]):
+	    #print ".",
             # a three elements tuple for each pixel
             pixel_tp=pixels_map[w,h]
 

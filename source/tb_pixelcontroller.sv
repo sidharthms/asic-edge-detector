@@ -153,7 +153,7 @@ module tb_pixelcontroller
 		global_setup = 0;
 		#(CLK_T);
 		
-	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n",0,128,1,128);	
+	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n;",0,24'h80,1,24'h80);	
 	
 		for(J=0;J<=820;J=J+1) begin
 			$display("Testing Pixel Controller");
@@ -171,24 +171,21 @@ module tb_pixelcontroller
 			//tbp_data_in[1] = 8'hBF;
 			
 			#(12*CLK_T);
-			$display("iteration %d",J);			
+			$display("========== Progress: %.3f %% ==============",J*100/820.00);			
 			//Check Output in Data Out Registers
 			for(i = 0; i < tbp_num_pix_read; i = i+1) begin		
 			    //TODO: negedge seem to not be safe enough
 			    @(posedge tbp_read_now);
 			   
-			   $display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
-			   $display("------------ accessible via reg as <%d>",  tbp_data_out[i]);			
-			   $display("%x",tbp_data_out);			 
+			//   $display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
+			 //  $display("------------ accessible via reg as <%d>",  tbp_data_out[i]);			
+			 //  $display("%x",tbp_data_out);			 
 			   $fwrite(out_file,"%x:%x;\n",tbp_address_read_offset + i + 2,tbp_data_out[i] & 24'hFF);
 			end
 		end
 
 		#(CLK_T*2);
-
-		//Double Check Memory	
-		$display("RECONSTRUCTING IMAGE!");
-		$scriptsim("source/reconstruct.sh");
+		
 		//DUMP MEMORY
 /*		#(CLK_T*2);	
 		mem_dump = 1'b1;
@@ -197,7 +194,13 @@ module tb_pixelcontroller
 */
 
 		$fclose(out_file);
+		#(30000);
+		//Double Check Memory	
+		$display("RECONSTRUCTING IMAGE!");
+		$system("bash source/reconstruct.sh");
 
+		$display("Grayscale Test Complete!");
+		
 			
 	end
 	
