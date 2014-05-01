@@ -58,7 +58,7 @@ module blur_controller
 
   // Blur filter should be enabled only when all inputs are stable.
   assign unit_en_x = index != 8 && state == PROCESSING; 
-  assign unit_en_y = index != 0 && state == PROCESSING; 
+  assign unit_en_y = index != 0; 
   assign unit_final = unit_final_x || unit_final_y;
 
   flex_counter #(.NUM_CNT_BITS(4)) index_counter(
@@ -133,7 +133,7 @@ module blur_controller
         end
       end
 
-      if (unit_en_y)
+      if (unit_en_y && unit_final_y)
       begin
         blur_out[index_y1] <= out_pixel_y1;
         blur_out[index_y2] <= out_pixel_y2;
