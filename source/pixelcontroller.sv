@@ -51,12 +51,12 @@ reg Rtim_clear, Wtim_clear;
 reg Rtim_en, Wtim_en;
 reg [3:0] Rindex;
 reg [3:0] Windex;
-reg write_now;
+reg postread_now;
 /* Temporary Regs */
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
 //reg end_of_operations;
 reg addr_clearW; //Clear address for write op
-reg [5:0] ctfill;
+reg [5:0] ctfill,ctfill_w;
 
 always @ (posedge clk, negedge n_rst)
 begin
@@ -65,7 +65,9 @@ begin
 		address = address_read_offset;
 		total_read = 0;
 		Rtim_en = 1'b1;	
+		Wtim_en = 1'b1;
 		ctfill = 0;
+		ctfill_w = 0;
 	end else begin
 		state = next_state;
 		if(addr_clearW) begin
@@ -73,27 +75,32 @@ begin
 		end else if(read_now) begin
 			address = address + 1;
 			ctfill = ctfill + 1;
+			ctfill_w = ctfill_w + 1;
 		end
 	end
 end
+
+//Note: Read Timer is actually also for write timer as well as read
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .clk(clk),
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(4'hA),//supposed to be 5+2 nano 
+      .rollover_val(4'h9),//supposed to be 5+2 nano 
       .count_out(Rindex),
       .rollover_flag(read_now));
 
-/* WRITE TIMER SIGNALS goes below */
-flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
+/* Post-Read TIMER SIGNALS goes below */
+// Let W = PR
+flex_counter #(.NUM_CNT_BITS(4)) PRtimer(
       .clk(clk),
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(4'hA),//supposed to be 7 nano 
+      .rollover_val(4'h9),//let PR trigger when ctfill is stable //same rate but later
       .count_out(Windex),
-      .rollover_flag(write_now));
+      .rollover_flag(postread_now));
+
 
 always_comb
 begin
@@ -108,17 +115,20 @@ begin
 	if(state == IDLE) begin
 		next_state = READ_OP;
 		Rtim_clear = 1'b1; //Flush Read Timer  
+		Wtim_clear = 1'b1; //Flust Postread timer
 		end_of_operations = 1'b0;
 	end else if(state == READ_OP) begin
 		next_state = READ_OP;
 		write_enable = 1'b0;
 		read_enable = 1'b1;
-		//Wtim_rst = 1'b1;
+	
 		temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
 		
 		//if(read_now)		
 		//store only grayscale equivalent by averaging-ish 
-		data_out[ctfill] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
+		if(~read_now) begin //Sample our point a bit later
+			data_out[ctfill] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
+		end
 		if((address - address_read_offset) == (num_pix_read)) begin
 			//if we have had enough of reading operations
 			next_state = WRITE_OP; //go to WRITE OP
@@ -130,7 +140,7 @@ begin
 		write_enable = 1'b1;
 		read_enable = 1'b0;
 		addr_clearW = 1'b0;
-		w_data = data_in[address - address_write_offset];
+		w_data = data_in[ctfill_w];
 		if((address - address_write_offset) == (num_pix_write)) begin
 			next_state = DONE;
 			write_enable = 1'b0;
@@ -142,78 +152,4 @@ begin
 
 end
 
-/*
-always_comb
-begin
-	Rtim_clear = 1'b0;
-	Rtim_rst = 1'b1;
-	Wtim_rst = 1'b1;
-	Wtim_clear = 1'b0;
-	next_state = IDLE;
-	if(state == IDLE) begin
-		next_state = IDLE;
-		if(enable == 1'b1) begin
-			//If pixelcontroller is enabled proceed to READ stuff 
-			Rtim_en = 1'b1;
-			Rtim_clear = 1'b1;
-			next_state = READ_OP;
-			total_written = 0;	
-			read_enable =0;
-			write_enable =0;
-			next_address = 24'hz;
-			Wtim_rst = 0;
-			Wtim_rst = 1;
-			next_total_read = 0;
-			total_written = 0;
-		end
-	end else if(state == READ_OP) begin
-		next_state = READ_OP; //stay in READ_OP unless operation is finished
-		if(total_read == num_pix_read) begin
-			next_state = WRITE_OP;
-			Wtim_en = 1'b1;
-			Wtim_clear = 1'b1;
-		end	
-
-		write_enable = 1'b0;
-		read_enable = 1'b1; //Enable read
-		
-		if(read_now) begin
-	
-			next_address = address_read_offset + total_read; //Output address wanted
-			
-			//sum RBG
-			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
-			//store only grayscale equivalent by averaging-ish 
-			data_out[total_read] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8));
-			//move on
-			next_total_read = total_read + 1;
-		end
-	end else if(state == WRITE_OP) begin
-		next_state = WRITE_OP;
-		if(total_written == num_pix_write) begin
-			next_state = DONE;
-		end
-		
-		next_address = address_write_offset + total_written; //address wish to write to
-	  	write_enable = 1'b1;
-		read_enable = 1'b0;
-		
-		w_data = data_in[total_written ];
-		if(write_now) begin
-			total_written = total_written + 1;
-		end else begin
-			//no more write now
-			write_enable = 1'b0;
-		end
-
-	end else if(state == DONE) begin
-		next_state = DONE;
-		//Stay here and rot forever
-		read_enable = 1'b0;
-		write_enable = 1'b0;
-		Rtim_en = 1'b0;
-		Wtim_en = 1'b0;
-	end
-end
-*/
 endmodule
