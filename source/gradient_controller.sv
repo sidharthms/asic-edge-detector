@@ -15,7 +15,7 @@ module gradient_controller
 
   input  wire [15:0][7:0] gradient_in,
   output reg signed [13:0][1:0] gradient_angle,
-  output reg signed [13:0][5:0] gradient_mag,
+  output reg signed [13:0][7:0] gradient_mag,
   output reg gradient_final             // Filter phase completed for all pixels.
 );
   
@@ -27,6 +27,7 @@ module gradient_controller
   state_type state, next_state;
 
   wire index_clear;
+  wire index_en;
   wire [3:0] index;
   wire [3:0] index_1;
   wire [3:0] index_2;
@@ -46,11 +47,16 @@ module gradient_controller
   wire [10:0] out_pixel_x2;
   wire [10:0] out_pixel_y2;
 
+  reg  [10:0] in_x;
+  reg  [10:0] in_y;
   wire [1:0] out_angle;
   wire [7:0] out_mag;
 
   assign anchor_on_init_pos = anchor_x == 1;
   assign index_clear = next_state != PROCESSING;
+  assign index_en = state == PROCESSING;
+
+  assign gradient_final = (index == 15) || (state == IDLE);
 
   assign index_1 = index;
   assign index_2 = index-1;
@@ -65,7 +71,7 @@ module gradient_controller
       .clk(clk),
       .n_rst(n_rst),
       .clear(index_clear),
-      .count_enable(unit_final),
+      .count_enable(index_en),
       .rollover_val(4'd15),
       .count_out(index));
 
@@ -90,15 +96,14 @@ module gradient_controller
       .in_pixels(in_pixels_y2),
       .out_pixel(out_pixel_y2));
 
-  gradient_angle filter_angle(
+  gradient_mag_angle #(
+      .BITS(10),
+      .PRECISION(8))
+    mag_angle(
       .in_x(in_x),
       .in_y(in_y),
-      .out_angle);
-
-  gradient_mag filter_mag(
-      .in_x(in_x),
-      .in_y(in_y),
-      .out_mag);
+      .out_angle(out_angle),
+      .out_mag(out_mag));
 
   always @ (posedge clk, negedge n_rst)
   begin

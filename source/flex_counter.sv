@@ -17,8 +17,7 @@ module flex_counter
 	input wire count_enable,
 	input wire [NUM_CNT_BITS-1:0] rollover_val,
 	output reg [NUM_CNT_BITS-1:0] count_out,
-	output wire rollover_flag,
-  input wire back_to_zero
+	output wire rollover_flag
 );
 	reg [NUM_CNT_BITS-1:0] data;
   reg [NUM_CNT_BITS-1:0] next_data;
@@ -50,10 +49,7 @@ module flex_counter
     begin
 			if (count_enable)
 				if (rollover_val == data)
-          if (back_to_zero)
-            next_data = 0;
-          else
-            next_data = 1;
+          next_data = 1;
 				else
 					next_data = data + 1;
 			else
