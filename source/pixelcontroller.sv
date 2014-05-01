@@ -26,6 +26,7 @@ module pixelcontroller
 	input wire [24:0] num_pix_write,		   //how many pixels do we need to write
 	input wire n_rst,
 	output wire read_now,        //flag that pixel data must be read now
+	output reg end_of_operations,
 	//SRAM Controls
 	output reg [W_ADDR_SIZE_BITS - 1:0] address,
 	output reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1: 0] w_data,
@@ -34,7 +35,7 @@ module pixelcontroller
 	output reg write_enable
 );
 
-typedef enum bit[2:0] {IDLE, WRITE_OP, READ_OP, DONE,READ_WAIT,WRITE_WAIT} state_type;
+typedef enum bit[1:0] {IDLE, WRITE_OP, READ_OP, DONE} state_type;
 state_type state, next_state;
 
 
@@ -53,17 +54,19 @@ reg [3:0] Windex;
 reg write_now;
 /* Temporary Regs */
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
-
+//reg end_of_operations;
 
 always @ (posedge clk, negedge n_rst)
 begin
 	if(1'b0 == n_rst) begin
 		state = IDLE;
-		address = 0;
+		address = address_read_offset;
 		total_read = 0;
 		Rtim_en = 1'b1;	
 	end else begin
 		state = next_state;
+		if(next_state == WRITE_OP)
+			address = address_write_offset;
 		if(read_now)
 			address = address + 1;
 	end
@@ -73,7 +76,7 @@ flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(4'hB),//supposed to be 12 nano 
+      .rollover_val(4'h5),//supposed to be 12 nano 
       .count_out(Rindex),
       .rollover_flag(read_now),
       .back_to_zero(1'b0));
@@ -84,7 +87,7 @@ flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(4'hB),//supposed to be 12 nano 
+      .rollover_val(4'h5),//supposed to be 12 nano 
       .count_out(Windex),
       .rollover_flag(write_now),
       .back_to_zero(1'b0));
@@ -95,18 +98,41 @@ begin
 	Rtim_rst = 1'b1;
 	Wtim_rst = 1'b1;
 	Wtim_clear = 1'b0;
+	write_enable = 1'b0;
+	read_enable = 1'b0; 	
 	next_state = IDLE;
 	if(state == IDLE) begin
 		next_state = READ_OP;
+		Rtim_clear = 1'b1; //Flush Read Timer  
+		end_of_operations = 1'b0;
 	end else if(state == READ_OP) begin
 		next_state = READ_OP;
 		write_enable = 1'b0;
 		read_enable = 1'b1;
+		Wtim_rst = 1'b1;
+
+		if(read_now)	
+			//sum RBG
+			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
+			//store only grayscale equivalent by averaging-ish 
+			data_out[address - address_read_offset] = ((temp >> 2) + (temp >> 4) + (temp >> 6) + (temp >> 8)); 
+	
 		if((address - address_read_offset) == (num_pix_read)) begin
 			//if we have had enough of reading operations
-			next_state = IDLE; //go to idle
+			next_state = WRITE_OP; //go to WRITE OP
 			//otherwise stay here
 		end
+	end else if(state == WRITE_OP) begin
+		next_state = WRITE_OP;
+		write_enable = 1'b1;
+		read_enable = 1'b0;
+		Rtim_rst = 1'b0;
+		if((address - address_write_offset) == (num_pix_write)) begin
+			next_state = DONE;
+			end_of_operations = 1'b1;
+		end
+	end else if(state == DONE) begin
+		next_state = DONE;
 	end
 
 end
