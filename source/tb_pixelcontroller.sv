@@ -83,6 +83,7 @@ module tb_pixelcontroller
 	reg [24:0] tbp_num_pix_read, tbp_num_pix_write;
 	reg tbp_n_rst;
 	reg tbp_read_now;
+	reg tbp_EOO; 
 		
 
 	off_chip_sram_wrapper #(W_ADDR_SIZE_BITS,3,1,10,10) SRAM(.init_file_number(init_file_number), 
@@ -108,6 +109,7 @@ module tb_pixelcontroller
 	.num_pix_write(tbp_num_pix_write),
 	.n_rst(tbp_n_rst),
 	.read_now(tbp_read_now),
+	.end_of_operations(tbp_EOO),
 	.address(paddress),
 	.w_data(pw_data),
 	.r_data(r_data),
@@ -160,13 +162,17 @@ module tb_pixelcontroller
 		#(CLK_T);
 		tbp_enable = 1'b1;
 		tbp_n_rst = 1'b1;
-		//Request to read 2 pixels, starting at 0th pixel
-		tbp_num_pix_write <= 0;
-		tbp_num_pix_read <= 4;
+		//Request to read 10 pixels, starting at 0th pixel
+	        tbp_data_in[0] = 8'hFA;
+		tbp_data_in[1] = 8'hAB;	
+		tbp_data_in[10]= 8'hFE;
+		tbp_data_in[11] = 8'hEF;
+		tbp_num_pix_write <= 2;
+		tbp_num_pix_read <= 10;
 		tbp_address_write_offset <= 16'h0;
 		tbp_address_read_offset <= 16'h0;
 		
-		#(CLK_T*2);
+		#(5000);
 	
 		//Double Check Memory	
 		$display("[DIRECT] Dumping SRAM to memory");

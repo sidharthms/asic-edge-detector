@@ -22,7 +22,7 @@ module pixelcontroller
 	input reg [19:0][BIT_PER_PIXEL - 1:0] data_in,		   //requested pixels to be written to SRAM
 	input wire [W_ADDR_SIZE_BITS - 1:0] address_write_offset,  //starting at what address do we start writing to
 	input wire [W_ADDR_SIZE_BITS - 1:0] address_read_offset, //starting at what address do we start reading from
-	input wire [24:0] num_pix_read,		   //how many pixels do we need to read
+	input wire [24:0] num_pix_read,		 	   //how many pixels do we need to read
 	input wire [24:0] num_pix_write,		   //how many pixels do we need to write
 	input wire n_rst,
 	output wire read_now,        //flag that pixel data must be read now
@@ -55,6 +55,7 @@ reg write_now;
 /* Temporary Regs */
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
 //reg end_of_operations;
+reg addr_clearW; //Clear address for write op
 
 always @ (posedge clk, negedge n_rst)
 begin
@@ -65,10 +66,11 @@ begin
 		Rtim_en = 1'b1;	
 	end else begin
 		state = next_state;
-		if(next_state == WRITE_OP)
+		if(addr_clearW) begin
 			address = address_write_offset;
-		if(read_now)
+		end else if(read_now) begin
 			address = address + 1;
+		end
 	end
 end
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
@@ -76,10 +78,9 @@ flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(4'h5),//supposed to be 12 nano 
+      .rollover_val(4'h5),//supposed to be 5+2 nano 
       .count_out(Rindex),
-      .rollover_flag(read_now),
-      .back_to_zero(1'b0));
+      .rollover_flag(read_now));
 
 /* WRITE TIMER SIGNALS goes below */
 flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
@@ -87,10 +88,9 @@ flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(4'h5),//supposed to be 12 nano 
+      .rollover_val(4'h5),//supposed to be 7 nano 
       .count_out(Windex),
-      .rollover_flag(write_now),
-      .back_to_zero(1'b0));
+      .rollover_flag(write_now));
 
 always_comb
 begin
@@ -101,6 +101,7 @@ begin
 	write_enable = 1'b0;
 	read_enable = 1'b0; 	
 	next_state = IDLE;
+	addr_clearW = 1'b0;
 	if(state == IDLE) begin
 		next_state = READ_OP;
 		Rtim_clear = 1'b1; //Flush Read Timer  
@@ -109,7 +110,7 @@ begin
 		next_state = READ_OP;
 		write_enable = 1'b0;
 		read_enable = 1'b1;
-		Wtim_rst = 1'b1;
+		//Wtim_rst = 1'b1;
 
 		if(read_now)	
 			//sum RBG
@@ -121,14 +122,17 @@ begin
 			//if we have had enough of reading operations
 			next_state = WRITE_OP; //go to WRITE OP
 			//otherwise stay here
+			addr_clearW = 1'b1;
 		end
 	end else if(state == WRITE_OP) begin
 		next_state = WRITE_OP;
 		write_enable = 1'b1;
 		read_enable = 1'b0;
-		Rtim_rst = 1'b0;
+		addr_clearW = 1'b0;
+		w_data = data_in[address - address_write_offset];
 		if((address - address_write_offset) == (num_pix_write)) begin
 			next_state = DONE;
+			write_enable = 1'b0;
 			end_of_operations = 1'b1;
 		end
 	end else if(state == DONE) begin
