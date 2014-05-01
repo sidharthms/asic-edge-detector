@@ -34,7 +34,7 @@ module pixelcontroller
 	output reg write_enable
 );
 
-typedef enum bit[1:0] {IDLE, WRITE_OP, READ_OP, DONE} state_type;
+typedef enum bit[2:0] {IDLE, WRITE_OP, READ_OP, DONE,READ_WAIT,WRITE_WAIT} state_type;
 state_type state, next_state;
 
 
@@ -55,17 +55,17 @@ reg write_now;
 reg [W_DATA_SIZE_WORDS * W_WORD_SIZE_BYTES * 8 - 1:0] temp;
 
 
-
 always @ (posedge clk, negedge n_rst)
 begin
 	if(1'b0 == n_rst) begin
 		state = IDLE;
-		address = 24'hz;
+		address = 0;
 		total_read = 0;
+		Rtim_en = 1'b1;	
 	end else begin
-		address = next_address;
 		state = next_state;
-		total_read = next_total_read;
+		if(read_now)
+			address = address + 1;
 	end
 end
 flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
@@ -73,7 +73,7 @@ flex_counter #(.NUM_CNT_BITS(4)) Rtimer(
       .n_rst(Rtim_rst),
       .clear(Rtim_clear),
       .count_enable(Rtim_en),
-      .rollover_val(4'hF),//supposed to be 12 nano 
+      .rollover_val(4'hB),//supposed to be 12 nano 
       .count_out(Rindex),
       .rollover_flag(read_now),
       .back_to_zero(1'b0));
@@ -84,11 +84,34 @@ flex_counter #(.NUM_CNT_BITS(4)) Wtimer(
       .n_rst(Wtim_rst),
       .clear(Wtim_clear),
       .count_enable(Wtim_en),
-      .rollover_val(4'hF),//supposed to be 12 nano 
+      .rollover_val(4'hB),//supposed to be 12 nano 
       .count_out(Windex),
       .rollover_flag(write_now),
       .back_to_zero(1'b0));
 
+always_comb
+begin
+	Rtim_clear = 1'b0;
+	Rtim_rst = 1'b1;
+	Wtim_rst = 1'b1;
+	Wtim_clear = 1'b0;
+	next_state = IDLE;
+	if(state == IDLE) begin
+		next_state = READ_OP;
+	end else if(state == READ_OP) begin
+		next_state = READ_OP;
+		write_enable = 1'b0;
+		read_enable = 1'b1;
+		if((address - address_read_offset) == (num_pix_read)) begin
+			//if we have had enough of reading operations
+			next_state = IDLE; //go to idle
+			//otherwise stay here
+		end
+	end
+
+end
+
+/*
 always_comb
 begin
 	Rtim_clear = 1'b0;
@@ -104,7 +127,6 @@ begin
 			Rtim_clear = 1'b1;
 			next_state = READ_OP;
 			total_written = 0;	
-			//write_now = 0;
 			read_enable =0;
 			write_enable =0;
 			next_address = 24'hz;
@@ -126,10 +148,8 @@ begin
 		
 		if(read_now) begin
 	
-		
 			next_address = address_read_offset + total_read; //Output address wanted
 			
-
 			//sum RBG
 			temp = ((r_data >> 16) & 24'hFF) + ((r_data >> 8) & 24'hFF) + (r_data & 24'hFF);	
 			//store only grayscale equivalent by averaging-ish 
@@ -164,4 +184,5 @@ begin
 		Wtim_en = 1'b0;
 	end
 end
+*/
 endmodule
