@@ -11,7 +11,7 @@ module hyst_controller
 
   input  wire [11:0][1:0] gradient_angle,
   input  wire [11:0][7:0] hyst_in,
-  output reg  [11:0][7:0] hyst_out,
+  output reg  [9:0][7:0] hyst_out,
   output reg  hyst_final               // Filter phase completed for all pixels.
 );
   

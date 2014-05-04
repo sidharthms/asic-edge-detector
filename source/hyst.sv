@@ -6,8 +6,8 @@
 module hyst
 #(
 	parameter BITS = 8,
-  parameter LOW_THRESH = 70,
-  parameter HIGH_THRESH = 140
+  parameter LOW_THRESH = 25,
+  parameter HIGH_THRESH = 50
 )
 (
 	input  wire [1:0] in_angle,

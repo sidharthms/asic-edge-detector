@@ -66,7 +66,7 @@ module flex_counter
 			else
 				next_data = data;
 				
-			if (next_data + increment - 1 >= rollover_val)
+			if (next_data + increment > rollover_val)
 				next_flag = 1'b1;
 			else
 				next_flag = 1'b0;

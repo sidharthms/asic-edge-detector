@@ -11,7 +11,7 @@ module nms_controller
 
   input  wire [13:0][1:0] gradient_angle,
   input  wire [13:0][7:0] gradient_mag,
-  output reg  [11:0][1:0] nms_grad_angle,
+  output reg  [11:0][1:0] nms_angle_out,
   output reg  [11:0][7:0] nms_out,
   output reg  nms_final               // Filter phase completed for all pixels.
 );
@@ -33,7 +33,7 @@ module nms_controller
   assign index_clear = next_state != PROCESSING;
   assign index_en = state == PROCESSING;
 
-  assign nms_grad_angle = grad_angle_data[1][12:1];
+  assign nms_angle_out = grad_angle_data[1][12:1];
 
   // NMS filter should be enabled only when all inputs are stable.
 

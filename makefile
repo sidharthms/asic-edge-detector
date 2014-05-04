@@ -11,6 +11,9 @@ include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 # File Related Variables
 ##############################################################################
 
+TOP_LEVEL_FILE := edge_detect.sv
+COMPONENT_FILES := anchor_controller blur_controller.sv gradient_controller.sv nms_controller.sv hyst_controller.sv gradient_mag_angle.sv gradient_sub.sv gradient_weight.sv nms.sv hyst.sv flex_counter.sv blur.sv adder_3.sv
+
 #TOP_LEVEL_FILE := blur_controller.sv
 #COMPONENT_FILES := flex_counter.sv blur.sv adder_3.sv
 
@@ -20,8 +23,8 @@ include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 #TOP_LEVEL_FILE := nms_controller.sv
 #COMPONENT_FILES := flex_counter.sv nms.sv
 
-TOP_LEVEL_FILE := hyst_controller.sv
-COMPONENT_FILES := flex_counter.sv hyst.sv
+#TOP_LEVEL_FILE := hyst_controller.sv
+#COMPONENT_FILES := flex_counter.sv hyst.sv
 
 # List internal component/block files here (separate the filenames with spaces)
 # (do not include the source folder in the name)

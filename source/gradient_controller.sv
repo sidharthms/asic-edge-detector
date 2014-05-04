@@ -8,7 +8,7 @@ module gradient_controller
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x,
+  input  wire [15:0] anchor_y,
 
   input  wire [15:0][7:0] gradient_in,
   output reg [13:0][1:0] gradient_angle,
@@ -51,7 +51,7 @@ module gradient_controller
   wire [1:0] out_angle;
   wire [7:0] out_mag;
 
-  assign anchor_on_init_pos = anchor_x == 1;
+  assign anchor_on_init_pos = anchor_y == 2;
   assign index_clear = next_state != PROCESSING;
   assign index_en = state == PROCESSING;
 

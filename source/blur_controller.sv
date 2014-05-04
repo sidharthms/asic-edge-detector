@@ -8,7 +8,7 @@ module blur_controller
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x,
+  input  wire [15:0] anchor_y,
 
   input  wire [19:0][7:0] blur_in,
   output reg  [15:0][7:0] blur_out,
@@ -44,7 +44,7 @@ module blur_controller
   wire unit_final_x;
   wire unit_final_y;
 
-  assign anchor_on_init_pos = anchor_x == 0;
+  assign anchor_on_init_pos = anchor_y == 1;
   assign index_clear = next_state != PROCESSING;
 
   assign index_x1 = 2*index;
