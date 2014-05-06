@@ -69,7 +69,6 @@ module tb_blur_controller();
     tb_n_rst,
     tb_anchor_moving,
     tb_anchor_x,
-    tb_anchor_y,
     tb_blur_in,
     tb_blur_out,
     tb_blur_final);

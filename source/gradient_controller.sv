@@ -8,12 +8,13 @@ module gradient_controller
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x,
-  input  wire [31:0] anchor_y,
+  input  wire [15:0] anchor_y,
 
   input  wire [15:0][7:0] gradient_in,
-  output reg signed [13:0][1:0] gradient_angle,
-  output reg signed [13:0][7:0] gradient_mag,
+  output reg [13:0][1:0] gradient_angle,
+  output reg [13:0][7:0] gradient_mag,
+  output reg signed [13:0][10:0] gradient_x,
+  output reg signed [13:0][10:0] gradient_y,
   output reg gradient_final           // Filter phase completed for all pixels.
 );
   
@@ -50,7 +51,7 @@ module gradient_controller
   wire [1:0] out_angle;
   wire [7:0] out_mag;
 
-  assign anchor_on_init_pos = anchor_x == 1;
+  assign anchor_on_init_pos = anchor_y == 2;
   assign index_clear = next_state != PROCESSING;
   assign index_en = state == PROCESSING;
 
@@ -63,7 +64,7 @@ module gradient_controller
   // Filter should be enabled only when all inputs are stable.
   assign unit_en_1 = index != 14 && index != 15 && state == PROCESSING; 
   assign unit_en_2 = index != 0 && index != 15; 
-  assign unit_en_2 = index != 0 && index != 1; 
+  assign unit_en_3 = index != 0 && index != 1; 
 
   flex_counter #(.NUM_CNT_BITS(4)) index_counter(
       .clk(clk),
@@ -95,7 +96,7 @@ module gradient_controller
       .out_pixel(out_pixel_y2));
 
   gradient_mag_angle #(
-      .BITS(10),
+      .BITS(11),
       .PRECISION(8))
     mag_angle(
       .in_x(in_x),
@@ -112,7 +113,7 @@ module gradient_controller
       state <= next_state;
 
       // Copy in fresh data at the beginning.
-      if (next_state == COPY)
+      if (state == COPY)
       begin
         gradient_data[0] <= gradient_in;
 
@@ -135,6 +136,8 @@ module gradient_controller
       begin
         in_x <= out_pixel_x2;
         in_y <= out_pixel_y2;
+        gradient_x[index_2] <= out_pixel_x2;
+        gradient_y[index_2] <= out_pixel_y2;
       end
 
       if (unit_en_3)

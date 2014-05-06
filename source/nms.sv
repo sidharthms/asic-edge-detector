@@ -10,7 +10,7 @@ module nms
 (
 	input  wire [1:0] in_angle,
   input  wire [8:0][7:0] in_mag,
-	output wire [7:0] out_pixel
+	output reg [7:0] out_pixel
 );
   reg [1:0][7:0] mag_pair;
 
@@ -23,4 +23,5 @@ module nms
       out_pixel = 0;
     else
       out_pixel = in_mag[4];
+  end
 endmodule

@@ -28,19 +28,19 @@ module initializer
 	input wire 		  ahb_hwrite, //transfer direction
 	input wire 		  ahb_hprot, //protection control
 	input wire [BUSWIDTH-1:0] ahb_haddr, //address bus 
-        input wire [BUSWIDTH-1:0] ahb_hwdata, //write data bus
+  input wire [BUSWIDTH-1:0] ahb_hwdata, //write data bus
 	input wire [BUSWIDTH-1:0] ahb_hrdata, //read data bus
 	input wire 		  ahb_hgrant, //bus grant
 	input wire 		  ahb_hlock, //locked transfer request
 	input wire 		  ahb_hbusreq, //bus request  
 	output reg                ahb_hready, //slave is ready
-        output reg [1:0]                ahb_hresp, //transfer response
+  output reg [1:0]                ahb_hresp, //transfer response
 	output reg [BUSWIDTH-1:0] 	  width,
 	output reg [BUSWIDTH-1:0] 	  height,
 	output reg [BUSWIDTH-1:0] 	  readStartAddress,
 	output reg [BUSWIDTH-1:0] 	  writeStartAddress,
 	output reg 		  filterType,
-        output reg                final_enable 
+  output reg                final_enable 
 );
 
    

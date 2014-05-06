@@ -8,12 +8,10 @@ module nms_controller
   input  wire clk,
   input  wire n_rst,
   input  wire anchor_moving,         // Start filtering when anchor moves.
-  input  wire [31:0] anchor_x,
-  input  wire [31:0] anchor_y,
 
   input  wire [13:0][1:0] gradient_angle,
   input  wire [13:0][7:0] gradient_mag,
-  output reg  [11:0][1:0] nms_grad_angle,
+  output reg  [11:0][1:0] nms_angle_out,
   output reg  [11:0][7:0] nms_out,
   output reg  nms_final               // Filter phase completed for all pixels.
 );
@@ -35,7 +33,7 @@ module nms_controller
   assign index_clear = next_state != PROCESSING;
   assign index_en = state == PROCESSING;
 
-  assign nms_grad_angle = grad_angle_data[1][12:1];
+  assign nms_angle_out = grad_angle_data[1][12:1];
 
   // NMS filter should be enabled only when all inputs are stable.
 
@@ -63,7 +61,7 @@ module nms_controller
       state <= next_state;
 
       // Copy in fresh data at the beginning.
-      if (next_state == COPY)
+      if (state == COPY)
       begin
         grad_angle_data[0] <= gradient_angle;
         grad_mag_data[0] <= gradient_mag;
@@ -108,8 +106,7 @@ module nms_controller
   begin
     in_angle = grad_angle_data[1][index+1];
     for (int i = 0; i < 3; i++)
-    begin
-      in_mag[i+:3] = grad_mag_data[2-i][index+:3];
-    end
+      for (int j = 0; j < 3; j++)
+        in_mag[i*3 + j] = grad_mag_data[2-i][index + j];
   end
 endmodule

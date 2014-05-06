@@ -8,7 +8,10 @@
 
 module flex_counter
 #(
-	parameter NUM_CNT_BITS = 4
+	parameter NUM_CNT_BITS = 4,
+  parameter FIRST_INCREMENT = 1,
+  parameter INCREMENT = 1,
+  parameter ZERO_RESET = 0
 )
 (
 	input wire clk,
@@ -20,9 +23,12 @@ module flex_counter
 	output wire rollover_flag
 );
 	reg [NUM_CNT_BITS-1:0] data;
-  reg [NUM_CNT_BITS-1:0] next_data;
+  reg [NUM_CNT_BITS:0] next_data;
 	reg flag;
 	reg next_flag;
+  wire [NUM_CNT_BITS-1:0] increment;
+
+  assign increment = data == 0 ? FIRST_INCREMENT : INCREMENT;
 	
 	always @ (posedge clk, negedge n_rst)
 	begin
@@ -49,13 +55,18 @@ module flex_counter
     begin
 			if (count_enable)
 				if (rollover_val == data)
-          next_data = 1;
+        begin
+          if (ZERO_RESET)
+            next_data = 0;
+          else
+            next_data = 1;
+        end
 				else
-					next_data = data + 1;
+          next_data = data + increment;
 			else
 				next_data = data;
 				
-			if (next_data == rollover_val)
+			if (next_data + increment > rollover_val)
 				next_flag = 1'b1;
 			else
 				next_flag = 1'b0;
