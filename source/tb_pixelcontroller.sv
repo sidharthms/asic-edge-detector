@@ -12,6 +12,9 @@ module tb_pixelcontroller
         // Define local parameters used by the test bench
 	localparam BUS_WIDTH = 32;
 
+	localparam TEST_GSCALE = 0;
+	localparam TEST_SIMPLE = 1;
+
   	localparam W_ADDR_SIZE_BITS = 16;
   	localparam W_DATA_SIZE_WORDS = 3;
   	localparam W_WORD_SIZE_BYTES = 1;	
@@ -120,7 +123,10 @@ module tb_pixelcontroller
    //Test bench process
    initial
     begin
+	tbp_n_rst = 1'b0;
+	if(TEST_GSCALE) begin
 		out_file = $fopen("aoutputs.mem");
+	end
 		global_setup = 1;
 				
 		//initializes
@@ -153,7 +159,11 @@ module tb_pixelcontroller
 		global_setup = 0;
 		#(CLK_T);
 		
-	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n;",0,24'h80,1,24'h80);	
+
+
+	
+       if(TEST_GSCALE) begin
+ 	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n;",0,24'h80,1,24'h80);	
 	
 		for(J=0;J<=820;J=J+1) begin
 			$display("Testing Pixel Controller");
@@ -161,14 +171,14 @@ module tb_pixelcontroller
 			tbp_n_rst <= 1'b0;
 			#(CLK_T);
 			tbp_n_rst <= 1'b1;
-			tbp_num_pix_write <= 00;	
+			tbp_num_pix_write <= 02;	
 			tbp_num_pix_read <= 20;
 			tbp_enable <= 1'b1;
 			tbp_address_write_offset <= 16'h00;
 			tbp_address_read_offset <= J*20;
 			
-			//tbp_data_in[0] = 8'hBB;
-			//tbp_data_in[1] = 8'hBF;
+			tbp_data_in[0] = 8'hBB;
+			tbp_data_in[1] = 8'hBF;
 			
 			#(12*CLK_T);
 			$display("========== Progress: %.3f %% ==============",J*100/820.00);			
@@ -177,31 +187,55 @@ module tb_pixelcontroller
 			    //TODO: negedge seem to not be safe enough
 			    @(posedge tbp_read_now);
 			   
-			//   $display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
+			 //  $display("[PXCTL] PX %d is RGB <%d,%d,%d>", tbp_address_read_offset + i, (r_data >> 16) & 24'h0000FF, (r_data >> 8) & 24'h0000FF, r_data & 24'h0000FF);
 			 //  $display("------------ accessible via reg as <%d>",  tbp_data_out[i]);			
 			 //  $display("%x",tbp_data_out);			 
 			   $fwrite(out_file,"%x:%x;\n",tbp_address_read_offset + i + 2,tbp_data_out[i] & 24'hFF);
 			end
-		end
+		end 
 
 		#(CLK_T*2);
+	end
 		
+
+		if(TEST_SIMPLE) begin
+		
+			tbp_data_in[0] = 8'hE0;
+			tbp_data_in[1] = 8'hFE;
+			tbp_data_in[2] = 8'hE9;
+			//SIMPLE RW TEST HERE
+
+			//read + write test
+			tbp_num_pix_write <= 03;
+			tbp_num_pix_read <= 15;
+			tbp_enable <= 1'b1;
+			tbp_address_write_offset <= 16'h00;
+			tbp_address_read_offset <= 16'h05;
+			#(1000);
+			tbp_n_rst <= 1'b0;
+			#(CLK_T*2);
+			tbp_n_rst <= 1'b1;
+
+			#(5000);
+		end
+
+		$display("Dumping memory to dump");
 		//DUMP MEMORY
-/*		#(CLK_T*2);	
+		#(CLK_T*2);	
 		mem_dump = 1'b1;
 		#(TIMESTEP);
 		mem_dump = 1'b0;
-*/
 
-		$fclose(out_file);
-		#(30000);
-		//Double Check Memory	
-		$display("RECONSTRUCTING IMAGE!");
-		$system("bash source/reconstruct.sh");
+		#(CLK_T);
+		if(TEST_GSCALE) begin
+			$fclose(out_file);
+			#(30000);
+			//Double Check Memory	
+			$display("RECONSTRUCTING IMAGE!");
+			$system("bash source/reconstruct.sh");
+		end
 
-		$display("Grayscale Test Complete!");
-		
-			
+		$display("Test Completed!");			
 	end
 	
 	always

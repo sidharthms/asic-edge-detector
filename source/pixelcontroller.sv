@@ -60,7 +60,7 @@ reg [5:0] ctfill,ctfill_w;
 
 always @ (posedge clk, negedge n_rst)
 begin
-	if(1'b0 == n_rst) begin
+	if(~n_rst) begin
 		state = IDLE;
 		address = address_read_offset;
 		total_read = 0;
@@ -73,9 +73,10 @@ begin
 		if(addr_clearW) begin
 			address = address_write_offset;
 		end else if(read_now) begin
+			//Read now (or write now strobe)
 			address = address + 1;
 			ctfill = ctfill + 1;
-			ctfill_w = ctfill_w + 1;
+			ctfill_w = ctfill_w + (state == WRITE_OP ? 1 : 0); // we don't want to strobe this unless we are in write mode
 		end
 	end
 end
@@ -113,7 +114,9 @@ begin
 	next_state = IDLE;
 	addr_clearW = 1'b0;
 	if(state == IDLE) begin
+		
 		next_state = READ_OP;
+		
 		Rtim_clear = 1'b1; //Flush Read Timer  
 		Wtim_clear = 1'b1; //Flust Postread timer
 		end_of_operations = 1'b0;
@@ -147,7 +150,8 @@ begin
 			end_of_operations = 1'b1;
 		end
 	end else if(state == DONE) begin
-		next_state = IDLE;
+		//never get out of done state until next operation is manually started via reset
+		next_state = DONE;
 	end
 
 end
