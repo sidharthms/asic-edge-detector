@@ -11,21 +11,16 @@ include /home/ecegrid/a/ece337/Course_Prod/course_make_vars
 # File Related Variables
 ##############################################################################
 
-#$(if [[ MAKECMDGOALS == *_tblurc_* ]]; then 
-TOP_LEVEL_FILE := blur_controller.sv
-COMPONENT_FILES := flex_counter.sv blur.sv adder_3.sv
-#fi)
-
 # List internal component/block files here (separate the filenames with spaces)
 # (do not include the source folder in the name)
 # NOTE: YOU WILL NEED TO SET THIS VARIABLE'S VALUE WHEN WORKING WITH HEIRARCHICAL DESIGNS
 # AND THE AUTOMATED GRADING SYSTEM
-#COMPONENT_FILES	= 
+COMPONENT_FILES	:= flex_counter.sv
 
 # Specify the name of the top level file (do not include the source folder in the name)
 # NOTE: YOU WILL NEED TO SET THIS VARIABLE'S VALUE WHEN WORKING WITH HEIRARCHICAL DESIGNS
 # AND THE AUTOMATED GRADING SYSTEM
-#TOP_LEVEL_FILE	= 
+TOP_LEVEL_FILE	:= pixelcontroller.sv
 
 # Specify the filepath of the test bench you want to use (ie. tb_top_level.sv)
 # (do not include the source folder in the name)
@@ -35,7 +30,8 @@ TEST_BENCH	:= tb_$(TOP_LEVEL_FILE)
 # other than the actual design files)( do not include the 'source/')
 # If you are not using one of the sram models simply remove the correspoinding
 # filename from this variable
-TB_HELPER_FILES	:= off_chip_sram_wrapper.vhd 
+TB_HELPER_FILES	:= off_chip_sram_wrapper.vhd
+#on_chip_sram_wrapper.vhd
 
 # Get the top level design and test_bench module names
 TB_MODULE		:= $(notdir $(basename $(TEST_BENCH)))
