@@ -12,8 +12,8 @@ module tb_pixelcontroller
         // Define local parameters used by the test bench
 	localparam BUS_WIDTH = 32;
 
-	localparam TEST_GSCALE = 0;
-	localparam TEST_SIMPLE = 1;
+	localparam TEST_GSCALE = 1;
+	localparam TEST_SIMPLE = 0;
 
   	localparam W_ADDR_SIZE_BITS = 16;
   	localparam W_DATA_SIZE_WORDS = 3;
@@ -163,9 +163,9 @@ module tb_pixelcontroller
 
 	
        if(TEST_GSCALE) begin
- 	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n;",0,24'h80,1,24'h80);	
-	
-		for(J=0;J<=820;J=J+1) begin
+ 	        $fwrite(out_file,"<loc>:<data>;\n%x:%x;\n%x:%x\n;",0,24'hff,1,24'hff);	
+		//vs 820
+		for(J=0;J<=3251;J=J+1) begin
 			$display("Testing Pixel Controller");
 			//Test Parameters for Pixel Controller
 			tbp_n_rst <= 1'b0;
@@ -181,7 +181,7 @@ module tb_pixelcontroller
 			tbp_data_in[1] = 8'hBF;
 			
 			#(12*CLK_T);
-			$display("========== Progress: %.3f %% ==============",J*100/820.00);			
+			$display("========== Progress: %.3f %% ==============",J*100/3251.00);			
 			//Check Output in Data Out Registers
 			for(i = 0; i < tbp_num_pix_read; i = i+1) begin		
 			    //TODO: negedge seem to not be safe enough

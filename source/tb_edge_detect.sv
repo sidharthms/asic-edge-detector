@@ -37,37 +37,40 @@ module tb_edge_detect;
   reg [9:0][7:0] tb_write_grad_mag;
   reg [9:0][1:0] tb_write_grad_ang;
   
-  reg [7:0]  test_cases_image [900];
-  reg [7:0]  test_cases_out [900];
-  reg [7:0]  test_cases_out_blur [900];
-  reg [7:0]  test_cases_out_grad_mag [900];
-  reg [1:0]  test_cases_out_grad_ang [900];
-  reg [7:0]  test_cases_exp_out [900];
+  reg [7:0]  test_cases_image [65095];
+  reg [7:0]  test_cases_out [65095];
+  reg [7:0]  test_cases_out_blur [65095];
+  reg [7:0]  test_cases_out_grad_mag [65095];
+  reg [1:0]  test_cases_out_grad_ang [65095];
+  reg [7:0]  test_cases_exp_out [65095];
   reg [15:0] width;
   reg [15:0] height;
- 
+  integer cntx, rstat;
   bit found_error;
-
-  // Test vector population
+  integer fh; //file Handler  
+  integer fo; //file out
+  reg [31:0]  read_in;
+  integer tb_totalpx;  
+// Test vector population
   initial
   begin
-    for (int i = 0; i < 30; i++)
-      for (int j = 0; j < 30; j++)
-      begin
-        if ((i >= 5 && i < 25) && (j>= 10 && j < 20))
-          test_cases_image[j*30+i] = 200;
-        else
-          test_cases_image[j*30+i] = 30;
-
-        if ((i >= 5 && i < 25) && (j==9 || j==10 || j==19 || j==20))
-          test_cases_exp_out[j*30+i] = 255;
-        else if ((j >= 9 && j <= 20) && (i==5 || i==24))
-          test_cases_exp_out[j*30+i] = 255;
-        else
-          test_cases_exp_out[j*30+i] = 0;
-      end
-    width = 30;
-    height = 30;
+    cntx = 0;
+    tb_totalpx = 2;
+    fo = $fopen("edgeoutput.mem","w");
+    fh = $fopen("ainputs.img","r");
+    $fwrite(fo,"<addr>:<data>;\n0:000080;\n1:000080;\n"); //write mem header
+    #(1000); 
+    $display("%d",fh);
+    while(!$feof(fh)) begin
+	rstat = $fscanf(fh, "%x", read_in);
+	$display("%x",read_in);
+	test_cases_image[cntx] = read_in;	
+	cntx = cntx + 1;
+	$display("X");
+    end
+    $display("deione");    
+    width = 255;
+    height = 255;
   end
 
   edge_detect DUT(
@@ -105,11 +108,11 @@ module tb_edge_detect;
   task perform_edge_detect;
     bit done;
   begin
-    
+    #(50000); 
     @(negedge tb_clk);
     tb_en_filter = 1;
-    tb_width = 30;
-    tb_height = 30;
+    tb_width = width;
+    tb_height = width;
     tb_in_start_address = 0;
     tb_out_start_address = 0;
     tb_filter_type = 0;
@@ -117,10 +120,11 @@ module tb_edge_detect;
 
     @(negedge tb_clk);
     tb_en_filter = 0;
-
+    
     tb_io_final = 1;
     done = 0;
-    while (~done)
+    $display("before while"); 
+   while (~done)
     begin
       if (tb_read_length < 20 && tb_anchor_x == 0)
       begin
@@ -155,6 +159,7 @@ module tb_edge_detect;
 
     // Wait for output to stabilize.
     @(negedge tb_clk);
+    $display("fffrferdone");
 
   end
   endtask
@@ -187,50 +192,53 @@ module tb_edge_detect;
     perform_edge_detect();
 
     $display("Inputs");
-    for (int r = 0; r < 30; r++)
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        $write("%3d ", test_cases_image[r*30+c]);
+      for (int c = 0; c < width; c++)
+        $write("%3d ", test_cases_image[r*width+c]);
       $write("\n");
     end
 
     $display("Outputs");
-    for (int r = 0; r < 30; r++)
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        $write("%3d ", test_cases_out[r*30+c]);
+      for (int c = 0; c < width; c++) begin
+        $write("%3d ", test_cases_out[r*width+c]);
+        $fwrite(fo, "%x:%x;\n", tb_totalpx, (test_cases_out[r*width+c] << 8) + (test_cases_out[r*width+c] << 16) + (test_cases_out[r*width+c] & 24'h0000FF));
+	tb_totalpx = tb_totalpx + 1;
+      end
       $write("\n");
     end
-
+/*
     $display("Expected Outputs");
-    for (int r = 0; r < 30; r++)
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        $write("%3d ", test_cases_exp_out[r*30+c]);
+      for (int c = 0; c < width; c++)
+        $write("%3d ", test_cases_exp_out[r*width+c]);
       $write("\n");
     end
-
-    $display("Blur");
-    for (int r = 0; r < 30; r++)
+*/
+    /*$display("Blur");
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        $write("%3d ", test_cases_out_blur[r*30+c]);
+      for (int c = 0; c < width; c++)
+        $write("%3d ", test_cases_out_blur[r*width+c]);
       $write("\n");
     end
 
     $display("Gradient_Mag");
-    for (int r = 0; r < 30; r++)
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        $write("%3d ", test_cases_out_grad_mag[r*30+c]);
+      for (int c = 0; c < width; c++)
+        $write("%3d ", test_cases_out_grad_mag[r*width+c]);
       $write("\n");
     end
 
     $display("Gradient_Ang");
-    for (int r = 0; r < 30; r++)
+    for (int r = 0; r < width; r++)
     begin
-      for (int c = 0; c < 30; c++)
-        case (test_cases_out_grad_ang[r*30+c])
+      for (int c = 0; c < width; c++)
+        case (test_cases_out_grad_ang[r*width+c])
           0: $write("  - ");
           1: $write("  / ");
           2: $write("  | ");
@@ -238,10 +246,10 @@ module tb_edge_detect;
         endcase
 
       $write("\n");
-    end
+    end*/
 
     error_count = 0;
-    for (int c = 0; c < 900; c++)
+    for (int c = 0; c < width*height; c++)
     begin
       assert(test_cases_out[c] == test_cases_exp_out[c])
       else
@@ -249,7 +257,13 @@ module tb_edge_detect;
         error_count = error_count + 1;
       end
     end 
-    $info("Test case completed with %0d mismatched pixels out of %0d total \
-      pixels", error_count, width * height);
+   // $info("Test case completed with %0d mismatched pixels out of %0d total \
+   //   pixels", error_count, width * height);
+	$info("Done");   
+    #(300000);
+   // $display("reconstrucnting");
+    $system("bash reconstructX.sh");    
+      $fclose(fo);
+
   end
 endmodule
