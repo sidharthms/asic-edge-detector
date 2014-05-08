@@ -1,0 +1,12 @@
+#!/bin/bash
+#
+if (( $# != 2 ))
+then
+	echo "Usage: useMemory <NEW MEM NAME> <CURRENT_MEM_NAME>"
+	exit 2
+fi
+
+echo $1 --> $2
+
+mv init1.mem $2.mem
+mv $1.mem init1.mem

@@ -1,0 +1,78 @@
+#***************************************************
+# Timing constraint file in PT format
+#
+# - Note: This is all case-sensitive
+#***************************************************
+
+#***************************************************
+# Clock Constraints	
+#***************************************************
+create_clock  -period 4.0000000 -waveform { 0.0000000 2.0000000}\
+   [get_ports {clk}]
+
+
+#***************************************************
+# Input Pin Constraints
+#***************************************************	 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {n_rst}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {transmit}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_enable}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[7]}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[6]}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[5]}] 
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[4]}]
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[3]}]
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[2]}]
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[1]}]
+set_input_delay -clock clk 1.0000 \
+   [get_ports {read_data[0]}]	 
+
+#***************************************************
+# Output Pin Constraints
+#***************************************************
+set_output_delay -clock clk 1.0000 \
+   [get_ports {write_data[0]}] 
+set_output_delay -clock clk 1.0000 \
+   [get_ports {write_data[1]}] 
+set_output_delay -clock clk 1.0000 \
+   [get_ports {write_data[2]}] 
+set_output_delay -clock clk 1.0000 \
+   [get_ports {write_data[3]}] 
+
+#***************************************************
+# Pin Driving Cells (Needed only for Inputs)
+#***************************************************
+set_driving_cell -lib_cell INVX8\
+   [get_ports {clk}] 
+set_driving_cell -lib_cell INVX8\
+   [get_ports {n_rst}] 
+set_driving_cell -lib_cell INVX8\
+   [get_ports {transmit}] 
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_enable}] 
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[7]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[6]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[5]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[4]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[3]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[2]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[1]}]
+set_driving_cell -lib_cell INVX8\
+   [get_ports {write_data[0]}]	 
